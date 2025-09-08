@@ -11,7 +11,7 @@ const categories = [
   { label: "Housekeeping", icon: Home, description: "Cleaning, maintenance, and daily assistance." },
 ]
 
-export default function Categories() {
+export default function ExploreServices() {
   return (
     <section id="categories" className="px-6 py-16 bg-muted/30">
       <div className="max-w-6xl mx-auto">

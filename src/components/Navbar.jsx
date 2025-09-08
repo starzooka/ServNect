@@ -12,7 +12,7 @@ import { Menu, X } from "lucide-react"
 
 const navigationLinks = [
   { to: "/", label: "Home" },
-  { to: "/categories", label: "Categories" },
+  { to: "/explore", label: "Explore" },
   { to: "/about", label: "About" },
 ]
 
