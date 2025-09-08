@@ -1,7 +1,7 @@
 // src/components/Home.jsx
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-
+import { Link } from "react-router-dom"
 export default function Home() {
   return (
     <section
@@ -21,10 +21,10 @@ export default function Home() {
       {/* CTA Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-wrap justify-center mb-10 sm:mb-12 w-full sm:w-auto">
         <Button asChild size="lg" className="w-full sm:w-auto">
-          <a href="/explore">Explore Services </a>
+          <Link to="/explore">Explore Services </Link>
         </Button>
         <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-          <a href="/about">Learn More</a>
+          <Link to="/about">Learn More</Link>
         </Button>
       </div>
 
