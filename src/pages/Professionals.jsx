@@ -4,27 +4,29 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 // Dummy data – in real case, this could come from an API or database
+// src/pages/Professionals.jsx
 const professionalsData = {
-  Electrician: [
+  electrician: [
     { name: "Rahul Sharma", experience: "5 years", location: "Kolkata", contact: "9876543210" },
     { name: "Anita Verma", experience: "3 years", location: "Delhi", contact: "9123456789" },
   ],
-  Plumber: [
+  plumber: [
     { name: "Ramesh Kumar", experience: "7 years", location: "Mumbai", contact: "9988776655" },
   ],
-  Carpenter: [
+  carpenter: [
     { name: "Suresh Gupta", experience: "4 years", location: "Bangalore", contact: "8877665544" },
   ],
-  Painter: [
+  painter: [
     { name: "Vikram Singh", experience: "6 years", location: "Hyderabad", contact: "7766554433" },
   ],
-  "IT Support": [
+  "it-support": [
     { name: "Priya Iyer", experience: "2 years", location: "Chennai", contact: "6655443322" },
   ],
-  Housekeeping: [
+  housekeeping: [
     { name: "Manoj Das", experience: "8 years", location: "Pune", contact: "5544332211" },
   ],
 }
+
 
 export default function Professionals() {
   const { category } = useParams()

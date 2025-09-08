@@ -1,3 +1,4 @@
+// src/components/ExploreServices.jsx
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card"
 import { Wrench, Droplets, Hammer, Paintbrush, Laptop, Home } from "lucide-react"
 import { useNavigate } from "react-router-dom"
@@ -31,7 +32,7 @@ export default function ExploreServices() {
             <Card
               key={category.key}
               className="hover:shadow-lg transition cursor-pointer"
-              onClick={() => navigate(`/explore/${category.key}`)}
+              onClick={() => navigate(`/professionals/${category.key}`)} // ✅ updated route
             >
               <CardHeader className="flex flex-col items-center">
                 <category.icon className="w-10 h-10 text-primary mb-2" />
