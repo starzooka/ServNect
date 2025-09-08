@@ -4,7 +4,6 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
 // Dummy data – in real case, this could come from an API or database
-// src/pages/Professionals.jsx
 const professionalsData = {
   electrician: [
     { name: "Rahul Sharma", experience: "5 years", location: "Kolkata", contact: "9876543210" },
@@ -27,10 +26,18 @@ const professionalsData = {
   ],
 }
 
+// Helper to make category label pretty
+const formatCategory = (key) => {
+  return key
+    .split("-") // split on hyphen
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) // capitalize each
+    .join(" ") // rejoin with spaces
+}
 
 export default function Professionals() {
   const { category } = useParams()
   const professionals = professionalsData[category] || []
+  const categoryLabel = formatCategory(category)
 
   return (
     <section className="px-6 py-16 bg-muted/30 min-h-screen">
@@ -38,7 +45,7 @@ export default function Professionals() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-primary">
-            {category} Professionals
+            {categoryLabel}
           </h2>
           <Button asChild variant="outline">
             <Link to="/explore">← Back to Services</Link>

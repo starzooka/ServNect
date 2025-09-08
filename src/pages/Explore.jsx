@@ -12,6 +12,7 @@ const categories = [
   { key: "housekeeping", label: "Housekeeping", icon: Home, description: "Cleaning, maintenance, and daily assistance." },
 ]
 
+
 export default function ExploreServices() {
   const navigate = useNavigate()
 
