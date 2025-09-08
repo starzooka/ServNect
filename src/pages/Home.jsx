@@ -10,7 +10,7 @@ export default function Home() {
     >
       {/* Hero Text */}
       <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight text-primary mb-4 text-center leading-snug">
-        Welcome to <span className="text-primary">Servnect 🚀</span>
+        Welcome to <span className="text-primary">ServNect 🚀</span>
       </h1>
 
       <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-xl sm:max-w-2xl mb-6 sm:mb-8 text-center">

@@ -31,7 +31,7 @@ export default function Navbar() {
             className="text-primary hover:text-primary/90 font-bold text-lg"
             onClick={() => setActiveLink("/")}
           >
-            Servnect
+            ServNect
           </Link>
         </div>
 
@@ -64,7 +64,7 @@ export default function Navbar() {
             <Link to="/signin">Sign In</Link>
           </Button>
           <Button asChild size="sm" className="text-sm">
-            <Link to="/get-started">Get Started</Link>
+            <Link to="/signup">Get Started</Link>
           </Button>
         </div>
 
@@ -103,7 +103,7 @@ export default function Navbar() {
               <Link to="/signin">Sign In</Link>
             </Button>
             <Button asChild size="sm" className="w-full">
-              <Link to="/get-started">Get Started</Link>
+              <Link to="/signup">Get Started</Link>
             </Button>
           </div>
         </div>

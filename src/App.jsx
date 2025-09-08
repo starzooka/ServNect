@@ -4,6 +4,8 @@ import Navbar from "./components/Navbar"
 import Home from "./pages/Home"
 import Categories from "./pages/Categories"
 import About from "./pages/About"
+import SignIn from "./pages/SignIn"
+import SignUp from "./pages/SignUp"
 
 function App() {
   return (
@@ -13,7 +15,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/about" element={<About />} />
-        {/* You can add About.jsx later */}
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
       </Routes>
     </>
   )
