@@ -15,13 +15,13 @@ export default function Home() {
 
       <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-xl sm:max-w-2xl mb-6 sm:mb-8 text-center">
         A modern service connector platform.  
-        Discover categories, connect with services, and get started instantly.
+        Discover services, connect with professionals, and get started instantly.
       </p>
 
       {/* CTA Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-wrap justify-center mb-10 sm:mb-12 w-full sm:w-auto">
         <Button asChild size="lg" className="w-full sm:w-auto">
-          <a href="/categories">Explore Categories</a>
+          <a href="/explore">Explore Services </a>
         </Button>
         <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
           <a href="/about">Learn More</a>
