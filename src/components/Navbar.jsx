@@ -33,7 +33,7 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           <Link
             to="/"
-            className="text-primary hover:text-primary/90 font-bold text-lg"
+            className="text-primary hover:text-primary/90 font-bold text-2xl"
             onClick={() => setActiveLink("/")}
           >
             ServNect
@@ -50,7 +50,7 @@ export default function Navbar() {
                   <Link
                     to={link.to}
                     onClick={() => setActiveLink(link.to)}
-                    className={`py-1.5 font-medium ${
+                    className={`py-1.5 font-medium text-xl ${
                       activeLink === link.to
                         ? "text-primary"
                         : "text-muted-foreground hover:text-primary"
@@ -67,7 +67,7 @@ export default function Navbar() {
         {/* --- FIX IS HERE (Desktop buttons) --- */}
         <div className="hidden md:flex items-center gap-2">
   <ThemeToggleButton /> {/* <-- Just the component, no extra text */}
-  <Button asChild variant="ghost" size="sm" className="text-sm">
+  <Button asChild variant="ghost" size="sm" className="text-base">
     <Link to="/signin">Sign In</Link>
   </Button>
   <Button asChild size="sm" className="text-sm">

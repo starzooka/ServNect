@@ -11,6 +11,7 @@ export default function ThemeToggleButton() {
       variant="ghost"
       size="icon"
       aria-label="Toggle theme"
+      className="relative flex h-8 w-8 items-center justify-center hover:scale-105 cursor-pointer"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     >
       {/* Show Sun icon in dark mode to switch to light */}
