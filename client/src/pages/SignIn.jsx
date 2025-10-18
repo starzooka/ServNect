@@ -1,11 +1,27 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { gql } from "@apollo/client";
+import { useMutation } from "@apollo/client/react"; // ✅ for Vite builds
 
-// Google icon component
+// ✅ GraphQL mutation
+const LOGIN_MUTATION = gql`
+  mutation Login($email: String!, $password: String!) {
+    login(email: $email, password: $password) {
+      token
+      user {
+        id
+        firstName
+        lastName
+        email
+      }
+    }
+  }
+`;
+
 const GoogleIcon = (props) => (
   <svg
     className="mr-2 h-4 w-4"
@@ -31,24 +47,61 @@ const GoogleIcon = (props) => (
       fill="#EA4335"
     />
   </svg>
-)
+);
 
 export default function SignIn() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  })
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const [login, { loading }] = useMutation(LOGIN_MUTATION, {
+    onCompleted: (data) => {
+      console.log("Login successful:", data.login.user.firstName);
+      window.location.href = "/";
+    },
+    onError: (error) => {
+      console.error("GraphQL login error:", error);
+
+      // ✅ Check for known authentication errors
+      if (
+        error.message.includes("Invalid email or password") ||
+        error.message.toLowerCase().includes("invalid credentials")
+      ) {
+        setErrorMessage("Invalid credentials. Please check your email or password.");
+      } else if (error.graphQLErrors?.length > 0) {
+        // ✅ Sometimes Apollo wraps errors inside graphQLErrors array
+        const msg = error.graphQLErrors[0].message || "Login failed.";
+        if (msg.includes("Invalid email or password")) {
+          setErrorMessage("Invalid credentials. Please check your email or password.");
+        } else {
+          setErrorMessage(msg);
+        }
+      } else {
+        setErrorMessage("An unexpected error occurred. Please try again.");
+      }
+    },
+  });
 
   const handleChange = (e) => {
-    const { id, value } = e.target
-    setFormData((prev) => ({ ...prev, [id]: value }))
-  }
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+    setErrorMessage("");
+  };
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log("Sign in attempted with:", formData)
-    // Add your sign-in logic here (e.g., API call)
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage("");
+    try {
+      await login({
+        variables: {
+          email: formData.email.trim(),
+          password: formData.password,
+        },
+      });
+    } catch (err) {
+      console.error("Login submission error:", err);
+      setErrorMessage("Network error. Please try again.");
+    }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background px-4">
@@ -89,8 +142,15 @@ export default function SignIn() {
               />
             </div>
 
-            <Button type="submit" className="w-full">
-              Sign In
+            {/* ✅ Error prompt */}
+            {errorMessage && (
+              <p className="text-sm text-red-600 text-center font-medium">
+                {errorMessage}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
 
@@ -106,7 +166,7 @@ export default function SignIn() {
             </div>
           </div>
 
-          {/* Google Sign In Button */}
+          {/* Google Sign In */}
           <Button variant="outline" className="w-full">
             <GoogleIcon />
             Google
@@ -127,5 +187,5 @@ export default function SignIn() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

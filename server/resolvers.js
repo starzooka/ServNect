@@ -1,58 +1,102 @@
-import { ObjectId } from 'mongodb';
-import bcrypt from 'bcrypt'; // <-- 1. Import bcrypt
+import { ObjectId } from "mongodb";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-default-secret-key";
 
 export const resolvers = {
   Query: {
-    // This resolver must be async since it's waiting for the database
-    getUsers: async (parent, args, context) => {
-      // Get the db from the context
-      const { db } = context;
-      // Fetch all documents from the 'users' collection
-      return await db.collection('users').find().toArray();
+    getUsers: async (parent, args, { db }) => {
+      const users = await db.collection("users").find().toArray();
+      return users.map(({ _id, password, ...rest }) => ({
+        id: _id.toString(),
+        ...rest,
+      }));
     },
 
-    // Get a single user by their ID
-    getUserById: async (parent, args, context) => {
-      const { db } = context;
-      // MongoDB queries by '_id', and it must be an ObjectId
-      return await db.collection('users').findOne({ _id: new ObjectId(args.id) });
+    getUserById: async (parent, { id }, { db }) => {
+      const user = await db.collection("users").findOne({
+        _id: new ObjectId(id),
+      });
+      if (!user) return null;
+      const { password, ...rest } = user;
+      return { id: user._id.toString(), ...rest };
+    },
+
+    me: async (parent, args, { user }) => {
+      if (!user) return null;
+      return user;
     },
   },
 
   Mutation: {
-    createUser: async (parent, args, context) => {
-      const { db } = context;
-      const { name, email, password } = args;
+    createUser: async (parent, args, { db }) => {
+      const { firstName, lastName, email, password } = args;
+      const existingUser = await db.collection("users").findOne({ email });
+      if (existingUser) throw new Error("Email already in use");
 
-      // --- 2. Hash the password ---
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-      // ----------------------------
-
-      // 3. Insert the new user with the hashed password
-      const result = await db.collection('users').insertOne({ 
-        name, 
-        email, 
-        password: hashedPassword // <-- Save the hash
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const result = await db.collection("users").insertOne({
+        firstName,
+        lastName,
+        email,
+        password: hashedPassword,
       });
 
-      // The database returns a result object with the insertedId.
-      // We return the full user object to match the schema.
       return {
-        _id: result.insertedId, // <-- Pass the original ObjectId
-        name: args.name,
-        email: args.email,
-        password: hashedPassword // <-- Return the hash
+        id: result.insertedId.toString(),
+        firstName,
+        lastName,
+        email,
       };
     },
+
+    login: async (parent, { email, password }, { db, res }) => {
+      try {
+        const user = await db.collection("users").findOne({ email });
+        if (!user) throw new Error("Invalid email or password");
+
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) throw new Error("Invalid email or password");
+
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+          expiresIn: "7d",
+        });
+
+        // ✅ Send token as httpOnly cookie
+        res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "Lax",
+          maxAge: 1000 * 60 * 60 * 24 * 7,
+        });
+
+        const { password: _, ...userWithoutPassword } = user;
+
+        return {
+          token,
+          user: {
+            id: user._id.toString(),
+            ...userWithoutPassword,
+          },
+        };
+      } catch (err) {
+        console.error("Login error:", err.message);
+        throw new Error(err.message || "Login failed");
+      }
+    },
+
+    logout: async (parent, args, { res }) => {
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Lax",
+      });
+      return true;
+    },
   },
-  
-  // This special resolver handles the _id -> id conversion
+
   User: {
-    id: (parent) => {
-      // 'parent' is the user document from the database.
-      // This function takes the '_id' from the database and returns it as a string for the 'id' field.
-      return parent._id.toString();
-    }
-  }
+    id: (parent) => parent.id || parent._id?.toString(),
+  },
 };

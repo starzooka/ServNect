@@ -1,17 +1,31 @@
-// Export the type definitions
 export const typeDefs = `#graphql
-    type Query {
-        getUsers: [User]
-        getUserById(id: ID!): User
-    }
-    type Mutation {
-        createUser(name: String!, email: String!, password: String!): User!
-    }
+  type Query {
+    getUsers: [User]
+    getUserById(id: ID!): User
+    me: User
+  }
 
-    type User {
-        id: ID!
-        name: String!
-        email: String!
-        password: String!
-    }
+  type Mutation {
+    createUser(
+      firstName: String!,
+      lastName: String!,
+      email: String!,
+      password: String!
+    ): User!
+
+    login(email: String!, password: String!): AuthPayload!
+    logout: Boolean!
+  }
+
+  type User {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    email: String!
+  }
+
+  type AuthPayload {
+    token: String!
+    user: User!
+  }
 `;
