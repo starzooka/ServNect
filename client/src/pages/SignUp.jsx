@@ -1,11 +1,22 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom" // NEW: Import useNavigate
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { gql} from "@apollo/client"
+import { useMutation } from "@apollo/client/react"
+// NEW: Define the GraphQL mutation
+const CREATE_USER_MUTATION = gql`
+  mutation CreateAUser($name: String!, $email: String!, $password: String!) {
+    createUser(name: $name, email: $email, password: $password) {
+      id
+      name
+      email
+    }
+  }
+`
 
-// Updated Google icon component with correct colors
 const GoogleIcon = (props) => (
   <svg
     className="mr-2 h-4 w-4"
@@ -41,28 +52,53 @@ export default function SignUp() {
     confirmPassword: "",
   })
   const [error, setError] = useState("")
+  const navigate = useNavigate() // NEW: Hook for redirection
+
+  // NEW: Initialize the mutation
+  // We rename 'error' from the hook to 'mutationError' to avoid conflicts
+  const [createUser, { loading, error: mutationError }] = useMutation(
+    CREATE_USER_MUTATION,
+    {
+      onCompleted: (data) => {
+        console.log("User created successfully:", data)
+        // Redirect to sign-in page on success
+        navigate("/signin")
+      },
+      onError: (error) => {
+        // Set the error state with the message from the server
+        setError(error.message)
+      },
+    }
+  )
 
   const handleChange = (e) => {
     const { id, value } = e.target
     setFormData((prev) => ({ ...prev, [id]: value }))
-
-    // Clear error when user starts typing in password fields
-    if (id === "password" || id === "confirmPassword") {
-      setError("")
-    }
+    setError("") // Clear errors on any input change
   }
 
-  const handleSubmit = (e) => {
+  // NEW: Updated handleSubmit to be async and call the mutation
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Check if passwords match
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match. Please try again.")
-      return // Stop the form submission
+      return
     }
-    // If passwords match, clear any previous error and proceed
-    setError("")
-    console.log("Form submitted successfully:", formData)
-    // Add your form submission logic here (e.g., API call)
+
+    try {
+      // Call the mutation function with variables from the form state
+      await createUser({
+        variables: {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        },
+      })
+    } catch (e) {
+      // The onError handler above will catch and display GraphQL errors,
+      // but this catch block is good for other potential issues.
+      console.error("Submission error", e)
+    }
   }
 
   return (
@@ -78,95 +114,54 @@ export default function SignUp() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {/* Name */}
+            {/* ... (Your Input fields for name, email, password remain the same) ... */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Your Name"
-                required
-                value={formData.name}
-                onChange={handleChange}
-              />
+              <Input id="name" type="text" placeholder="Your Name" required value={formData.name} onChange={handleChange} />
             </div>
-
-            {/* Email */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@mail.com"
-                required
-                value={formData.email}
-                onChange={handleChange}
-              />
+              <Input id="email" type="email" placeholder="your@mail.com" required value={formData.email} onChange={handleChange} />
             </div>
-
-            {/* Password */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-              />
+              <Input id="password" type="password" placeholder="Enter your password" required value={formData.password} onChange={handleChange} />
             </div>
-
-            {/* Confirm Password */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Re-enter your password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
+              <Input id="confirmPassword" type="password" placeholder="Re-enter your password" required value={formData.confirmPassword} onChange={handleChange} />
             </div>
 
-            {/* Error Message Display */}
-            {error && (
-              <p className="text-sm text-red-600 text-center">{error}</p>
+            {/* Error Message Display (now handles GraphQL errors too) */}
+            {(error || mutationError) && (
+              <p className="text-sm text-red-600 text-center">
+                {error || mutationError.message}
+              </p>
             )}
 
-            {/* Sign Up Button */}
-            <Button type="submit" className="w-full">
-              Sign Up
+            {/* Sign Up Button (now disabled during loading) */}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing Up..." : "Sign Up"}
             </Button>
           </form>
 
-          {/* Divider */}
+          {/* ... (The rest of your JSX for Google sign-in and the footer link remains the same) ... */}
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
+              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
             </div>
           </div>
-
-          {/* Google Sign In Button */}
           <Button variant="outline" className="w-full">
             <GoogleIcon />
             Google
           </Button>
-
-          {/* Footer */}
           <div className="mt-4 text-center text-sm">
             <p className="text-muted-foreground">
               Already have an account?{" "}
-              <Link
-                to="/signin"
-                className="text-primary hover:underline font-medium"
-              >
+              <Link to="/signin" className="text-primary hover:underline font-medium">
                 Sign In
               </Link>
             </p>
