@@ -14,9 +14,10 @@ export const resolvers = {
       }));
     },
 
+    // This block is now updated
     getUserById: async (parent, { id }, { db }) => {
       const user = await db.collection("users").findOne({
-        _id: new ObjectId(id),
+        _id: ObjectId.createFromHexString(id), // <-- THE FIX
       });
       if (!user) return null;
       const { password, ...rest } = user;

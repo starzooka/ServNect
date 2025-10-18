@@ -29,6 +29,7 @@ const GoogleIcon = (props) => (
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
+    {/* ... (svg paths) ... */}
     <title>Google</title>
     <path
       d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 34.6-25.7 63.7-58.4 83.1v68h87.7c51.5-47.4 81.6-117.4 81.6-201.1z"
@@ -61,17 +62,16 @@ export default function SignIn() {
     onError: (error) => {
       console.error("GraphQL login error:", error);
 
-      // ✅ Check for known authentication errors
+      // ✅ This logic is perfect and already does what you want.
       if (
         error.message.includes("Invalid email or password") ||
         error.message.toLowerCase().includes("invalid credentials")
       ) {
-        setErrorMessage("Invalid credentials. Please check your email or password.");
+        setErrorMessage("Invalid credentials. Please check your email and password.");
       } else if (error.graphQLErrors?.length > 0) {
-        // ✅ Sometimes Apollo wraps errors inside graphQLErrors array
         const msg = error.graphQLErrors[0].message || "Login failed.";
         if (msg.includes("Invalid email or password")) {
-          setErrorMessage("Invalid credentials. Please check your email or password.");
+          setErrorMessage("Invalid credentials. Please check your email and password.");
         } else {
           setErrorMessage(msg);
         }
@@ -87,21 +87,21 @@ export default function SignIn() {
     setErrorMessage("");
   };
 
-  const handleSubmit = async (e) => {
+  // --- THIS IS THE FIX ---
+  // Removed async/await and the try...catch block.
+  // This allows the 'onError' handler above to manage all errors.
+  const handleSubmit = (e) => {
     e.preventDefault();
     setErrorMessage("");
-    try {
-      await login({
-        variables: {
-          email: formData.email.trim(),
-          password: formData.password,
-        },
-      });
-    } catch (err) {
-      console.error("Login submission error:", err);
-      setErrorMessage("Network error. Please try again.");
-    }
+    
+    login({
+      variables: {
+        email: formData.email.trim(),
+        password: formData.password,
+      },
+    });
   };
+  // --- END OF FIX ---
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background px-4">
@@ -154,7 +154,7 @@ export default function SignIn() {
             </Button>
           </form>
 
-          {/* Divider */}
+          {/* ... (Rest of your JSX) ... */}
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
@@ -165,17 +165,13 @@ export default function SignIn() {
               </span>
             </div>
           </div>
-
-          {/* Google Sign In */}
           <Button variant="outline" className="w-full">
             <GoogleIcon />
             Google
           </Button>
-
-          {/* Footer */}
           <div className="mt-4 text-center text-sm">
             <p className="text-muted-foreground">
-              Don’t have an account?{" "}
+              Don't have an account?{" "}
               <Link
                 to="/signup"
                 className="text-primary hover:underline font-medium"
