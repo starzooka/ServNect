@@ -157,12 +157,12 @@ export default function SignUp() {
           {/* ... (Rest of your JSX) ... */}
       <div className="mt-4 text-center text-sm">
             <p className="text-muted-foreground">
-              Don’t have an account?{" "}
+              Already have an account?{" "}
               <Link
                 to="/signup"
                 className="text-primary hover:underline font-medium"
               >
-                Get Started
+                Sign in
               </Link>
             </p>
           </div>
