@@ -8,7 +8,6 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { ObjectId } from 'mongodb';
-
 import { typeDefs } from './schema.js';
 import { resolvers } from './resolvers.js';
 import { db } from './db.js';
@@ -27,14 +26,23 @@ const server = new ApolloServer({
 
 await server.start();
 
+// --- Fix Starts Here ---
+
+// 1. Apply global middleware to the entire app
+// This ensures CORS and other parsers run on *all* requests,
+// including the browser's preflight OPTIONS request.
 app.use(
-  '/',
   cors({
-    origin: 'https://servnect.vercel.app/', // frontend origin
-    credentials: true, // allow cookies
-  }),
-  express.json(),
-  cookieParser(),
+    origin: 'https://servnect.vercel.app', // 2. Removed the trailing slash
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use(cookieParser());
+
+// 3. Apply GraphQL middleware at your specific endpoint
+app.use(
+  '/', // Your GraphQL endpoint
   expressMiddleware(server, {
     context: async ({ req, res }) => {
       const token = req.cookies.token;
@@ -59,11 +67,13 @@ app.use(
 
       return { req, res, db, user };
     },
-  }),
+  })
 );
 
+// --- Fix Ends Here ---
+
 await new Promise((resolve) =>
-  httpServer.listen({ port: process.env.PORT || 4000 }, resolve),
+  httpServer.listen({ port: process.env.PORT || 4000 }, resolve)
 );
 
 console.log(`🚀 Server ready at http://localhost:4000/`);
