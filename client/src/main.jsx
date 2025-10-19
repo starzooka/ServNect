@@ -11,7 +11,7 @@ import AuthWrapper from "./components/AuthWrapper.jsx"; // Make sure this is her
 
 // Create an HttpLink instance
 const httpLink = new HttpLink({
-  uri: 'http://localhost:4000/',
+  uri: 'https://servnect-server.vercel.app/',
   //
   // THIS IS THE FIX:
   // Tell Apollo to send cookies with every request

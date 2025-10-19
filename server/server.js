@@ -30,7 +30,7 @@ await server.start();
 app.use(
   '/',
   cors({
-    origin: 'http://localhost:5173', // frontend origin
+    origin: 'https://servnect.vercel.app/', // frontend origin
     credentials: true, // allow cookies
   }),
   express.json(),
