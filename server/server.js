@@ -1,3 +1,4 @@
+// index.js
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express4';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
@@ -17,7 +18,31 @@ dotenv.config();
 
 const app = express();
 const httpServer = http.createServer(app);
-const JWT_SECRET = process.env.JWT_SECRET || 'your-default-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.warn(
+    '⚠️ JWT_SECRET not defined in environment variables. Using default insecure key.'
+  );
+}
+
+// ------------------- CORS & Middleware -------------------
+
+// Allow frontend origins (local + production)
+app.use(
+  cors({
+    origin: [
+      'http://localhost:5173',          // local dev
+      'https://servnect.vercel.app'     // production frontend
+    ],
+    credentials: true,
+  })
+);
+
+app.use(express.json());
+app.use(cookieParser());
+
+// ------------------- Apollo Server -------------------
 
 const server = new ApolloServer({
   typeDefs,
@@ -27,20 +52,7 @@ const server = new ApolloServer({
 
 await server.start();
 
-// --- Fix Starts Here ---
-
-// 1. Apply global middleware *before* your GraphQL middleware.
-// This is required for CORS (preflight OPTIONS requests) to work.
-app.use(
-  cors({
-    origin: 'http://localhost:5173', // frontend origin
-    credentials: true, // allow cookies
-  })
-);
-app.use(express.json());
-app.use(cookieParser());
-
-// 2. Apply GraphQL middleware at your endpoint.
+// GraphQL middleware with context (for auth)
 app.use(
   '/',
   expressMiddleware(server, {
@@ -48,17 +60,15 @@ app.use(
       const token = req.cookies.token;
       let user = null;
 
-      if (token) {
+      if (token && JWT_SECRET) {
         try {
           const decoded = jwt.verify(token, JWT_SECRET);
 
-          // 3. Cast `decoded.userId` to `string` to fix the TS warning.
           const userData = await db
             .collection('users')
             .findOne({ _id: new ObjectId(String(decoded.userId)) });
 
           if (userData) {
-            // remove password field
             const { password, ...userWithoutPassword } = userData;
             user = { ...userWithoutPassword, id: userData._id.toString() };
           }
@@ -72,10 +82,16 @@ app.use(
   })
 );
 
-// --- Fix Ends Here ---
+// ------------------- Health Check (Optional) -------------------
 
-await new Promise((resolve) =>
-  httpServer.listen({ port: process.env.PORT || 4000 }, resolve)
-);
+app.get('/ping', (req, res) => {
+  res.status(200).json({ message: 'pong', timestamp: new Date() });
+});
 
-console.log(`🚀 Server ready at http://localhost:4000/`);
+// ------------------- Start Server -------------------
+
+const PORT = process.env.PORT || 4000;
+
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server ready at port ${PORT}`);
+});
