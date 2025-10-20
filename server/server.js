@@ -31,13 +31,25 @@ if (!JWT_SECRET) {
 // Allow frontend origins (local + production)
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173',          // local dev
-      'https://servnect.vercel.app'     // production frontend
-    ],
-    credentials: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like curl or Postman)
+      if (!origin) return callback(null, true);
+
+      const allowedOrigins = [
+        'http://localhost:5173',        // local dev
+        'https://servnect.vercel.app'   // production frontend
+      ];
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true, // allow cookies
   })
 );
+
 
 app.use(express.json());
 app.use(cookieParser());
