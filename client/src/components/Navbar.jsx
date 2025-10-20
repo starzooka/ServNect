@@ -9,6 +9,7 @@ import {
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 import { Menu, X } from "lucide-react";
+// src/components/Navbar.jsx
 import { useAtom, useAtomValue } from "jotai";
 import { userAtom, authLoadingAtom } from "../atoms";
 import { gql } from "@apollo/client";
@@ -20,6 +21,7 @@ const navigationLinks = [
   { to: "/about", label: "About" },
 ];
 
+// ✅ This definition was missing from my previous snippet
 const LOGOUT_MUTATION = gql`
   mutation Logout {
     logout
@@ -35,14 +37,17 @@ export default function Navbar() {
   const [user, setUser] = useAtom(userAtom);
   const authLoading = useAtomValue(authLoadingAtom);
 
-  const [logout] = useMutation(LOGOUT_MUTATION, {
-    onCompleted: () => {
+  // ✅ Get `client` from useMutation
+  const [logout, { client }] = useMutation(LOGOUT_MUTATION, {
+    onCompleted: async () => {
       setUser(null); // Clear the global state
-      navigate("/signin"); // Navigate without reloading
+      await client.resetStore(); // Reset the Apollo cache
+      navigate("/signin"); // Navigate after reset
     },
-    onError: (err) => {
+    onError: async (err) => {
       console.error("Logout failed:", err);
       setUser(null);
+      await client.resetStore(); // Also reset on error
       navigate("/signin");
     },
   });

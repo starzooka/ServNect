@@ -10,13 +10,15 @@ import { ThemeProvider } from "./components/ThemeProvider.jsx";
 import AuthWrapper from "./components/AuthWrapper.jsx";
 
 // Get backend URL from environment
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+// const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 // Create Apollo Client
 const client = new ApolloClient({
   link: new HttpLink({
-    uri: BACKEND_URL,
-    credentials: "include", // send cookies with requests
+    uri: "http://localhost:5050",
+    fetchOptions: { // ✅ Wrap credentials in fetchOptions
+      credentials: "include", // send cookies with requests
+    },
   }),
   cache: new InMemoryCache(),
 });

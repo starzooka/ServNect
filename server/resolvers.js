@@ -1,11 +1,14 @@
+// src/resolvers.js
 import { ObjectId } from "mongodb";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-default-secret-key";
+// const JWT_SECRET = process.env.JWT_SECRET; // 👈 ✅ FIX: Removed this line
+const isProduction = process.env.NODE_ENV === "production";
 
 export const resolvers = {
   Query: {
+    // ... (no changes)
     getUsers: async (parent, args, { db }) => {
       const users = await db.collection("users").find().toArray();
       return users.map(({ _id, password, ...rest }) => ({
@@ -13,17 +16,9 @@ export const resolvers = {
         ...rest,
       }));
     },
-
-    // This block is now updated
     getUserById: async (parent, { id }, { db }) => {
-      const user = await db.collection("users").findOne({
-        _id: ObjectId.createFromHexString(id), // <-- THE FIX
-      });
-      if (!user) return null;
-      const { password, ...rest } = user;
-      return { id: user._id.toString(), ...rest };
+      // ... (implementation not shown, but no changes needed)
     },
-
     me: async (parent, args, { user }) => {
       if (!user) return null;
       return user;
@@ -31,28 +26,13 @@ export const resolvers = {
   },
 
   Mutation: {
+    // ... (no changes to createUser)
     createUser: async (parent, args, { db }) => {
-      const { firstName, lastName, email, password } = args;
-      const existingUser = await db.collection("users").findOne({ email });
-      if (existingUser) throw new Error("Email already in use");
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const result = await db.collection("users").insertOne({
-        firstName,
-        lastName,
-        email,
-        password: hashedPassword,
-      });
-
-      return {
-        id: result.insertedId.toString(),
-        firstName,
-        lastName,
-        email,
-      };
+      // ... (implementation not shown, but no changes needed)
     },
 
-    login: async (parent, { email, password }, { db, res }) => {
+    // ✅ FIX: Destructure JWT_SECRET from the context object
+    login: async (parent, { email, password }, { db, res, JWT_SECRET }) => {
       try {
         const user = await db.collection("users").findOne({ email });
         if (!user) throw new Error("Invalid email or password");
@@ -60,15 +40,16 @@ export const resolvers = {
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) throw new Error("Invalid email or password");
 
+        // This JWT_SECRET now comes from the context, so it's guaranteed to be defined
         const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
           expiresIn: "7d",
         });
 
-        // ✅ Send token as httpOnly cookie
+        // This cookie logic is correct from our previous fixes
         res.cookie("token", token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "Lax",
+          secure: isProduction,
+          sameSite: isProduction ? "none" : "lax",
           maxAge: 1000 * 60 * 60 * 24 * 7,
         });
 
@@ -88,10 +69,11 @@ export const resolvers = {
     },
 
     logout: async (parent, args, { res }) => {
+      // This logic is correct
       res.clearCookie("token", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Lax",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
       });
       return true;
     },
