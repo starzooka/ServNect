@@ -34,7 +34,7 @@ app.use(
       if (!origin) return callback(null, true);
       const allowedOrigins = [
         'http://localhost:5173',
-        // 'https://servnect.vercel.app'
+        'https://servnect.vercel.app'
       ];
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
