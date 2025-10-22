@@ -1,5 +1,3 @@
-// src/pages/SignUp.jsx (Full Updated Code)
-
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { useMutation } from "@apollo/client/react";
 import { gql } from "@apollo/client";
 
-// NEW: Define the GraphQL mutation
 const CREATE_USER_MUTATION = gql`
   # MODIFIED: Updated arguments
   mutation CreateAUser(
@@ -35,7 +32,6 @@ const CREATE_USER_MUTATION = gql`
 const GoogleIcon = (props) => ("http://www.w3.org/2000/svg")
 
 export default function SignUp() {
-  // MODIFIED: Updated form state
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -73,7 +69,6 @@ export default function SignUp() {
     }
 
     try {
-      // MODIFIED: Pass new variables
       await createUser({
         variables: {
           firstName: formData.firstName,
@@ -101,7 +96,6 @@ export default function SignUp() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             
-            {/* MODIFIED: Replaced 'Full Name' with two fields */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="firstName">First Name</Label>
               <Input
@@ -154,7 +148,6 @@ export default function SignUp() {
             </Button>
           </form>
 
-          {/* ... (Rest of your JSX) ... */}
       <div className="mt-4 text-center text-sm">
             <p className="text-muted-foreground">
               Already have an account?{" "}
