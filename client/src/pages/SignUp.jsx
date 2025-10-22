@@ -88,7 +88,7 @@ export default function SignUp() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background px-4">
+    <div className="flex items-center justify-center min-h-[90dvh] bg-background px-4">
       <Card className="w-full max-w-md shadow-lg rounded-2xl border">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">
@@ -159,7 +159,7 @@ export default function SignUp() {
             <p className="text-muted-foreground">
               Already have an account?{" "}
               <Link
-                to="/signup"
+                to="/signin"
                 className="text-primary hover:underline font-medium"
               >
                 Sign in

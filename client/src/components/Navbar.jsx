@@ -138,64 +138,78 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden flex flex-col gap-4 py-4 border-t">
-          {navigationLinks.map((link, index) => (
-            <Link
-              key={index}
-              to={link.to}
-              onClick={() => handleMobileLinkClick(link.to)}
-              className={`px-2 py-2 rounded-md font-medium ${
-                activeLink === link.to
-                  ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-primary"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+      {/* --- MODIFIED MOBILE MENU --- */}
+      {/* This div is no longer conditionally rendered with `&&`.
+        It is positioned absolutely and animated with opacity/transform.
+      */}
+      <div
+        className={`
+          md:hidden flex flex-col gap-4 py-4 border-t
+          absolute top-16 left-0 w-full bg-background z-40
+          transition-all duration-300 ease-in-out
+          ${
+            isMobileMenuOpen
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 -translate-y-4 pointer-events-none"
+          }
+        `}
+      >
+        {navigationLinks.map((link, index) => (
+          <Link
+            key={index}
+            to={link.to}
+            onClick={() => handleMobileLinkClick(link.to)}
+            className={`px-2 py-2 rounded-md font-medium ${
+              activeLink === link.to
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-primary"
+            }`}
+          >
+            {link.label}
+          </Link>
+        ))}
 
-          <div className="border-t pt-4 mt-2 flex flex-col gap-2 px-2">
-            {authLoading ? (
-              <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
-            ) : user ? (
-              <>
-                <span className="text-sm font-medium text-muted-foreground px-2 py-2">
-                  Welcome, {user.firstName}!
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  onClick={handleLogout}
+        <div className="border-t pt-4 mt-2 flex flex-col gap-2 px-2">
+          {authLoading ? (
+            <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
+          ) : user ? (
+            <>
+              <span className="text-sm font-medium text-muted-foreground px-2 py-2">
+                Welcome, {user.firstName}!
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={handleLogout}
+              >
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm" className="w-all">
+                {/* Added onClick handler to close menu */}
+                <Link
+                  to="/signin"
+                  onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button asChild variant="ghost" size="sm" className="w-full">
-                  <Link
-                    to="/signin"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Sign In
-                  </Link>
-                </Button>
-                <Button asChild size="sm" className="w-full">
-                  <Link
-                    to="/signup"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Get Started
-                  </Link>
-                </Button>
-              </>
-            )}
-          </div>
+                  Sign In
+                </Link>
+              </Button>
+              <Button asChild size="sm" className="w-all">
+                {/* Added onClick handler to close menu */}
+                <Link
+                  to="/signup"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Get Started
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </header>
   );
 }
