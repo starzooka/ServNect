@@ -65,8 +65,15 @@ export default function Navbar() {
 
   return (
     <header className="border-b px-4 md:px-6 bg-background sticky top-0 z-50">
-      <div className="flex h-16 items-center justify-between">
-        {/* Logo */}
+      
+      {/* --- MODIFIED --- */}
+      {/* On mobile (default), it's 'flex justify-between'.
+        On desktop (md:), it becomes a 3-column grid to force true centering.
+        'md:justify-normal' resets the 'justify-between' from flex.
+      */}
+      <div className="flex md:grid md:grid-cols-3 h-16 items-center justify-between md:justify-normal">
+        
+        {/* Logo (Stays in 1st column) */}
         <div className="flex items-center gap-2">
           <Link
             to="/"
@@ -77,8 +84,9 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* Desktop NavLinks */}
-        <NavigationMenu className="hidden md:block">
+        {/* --- MODIFIED --- */}
+        {/* Desktop NavLinks (Forced to center of 2nd column) */}
+        <NavigationMenu className="hidden md:block justify-self-center">
           <NavigationMenuList className="flex gap-6">
             {navigationLinks.map((link, index) => (
               <NavigationMenuItem key={index}>
@@ -100,8 +108,9 @@ export default function Navbar() {
           </NavigationMenuList>
         </NavigationMenu>
 
-        {/* Desktop Auth Buttons */}
-        <div className="hidden md:flex items-center gap-2">
+        {/* --- MODIFIED --- */}
+        {/* Desktop Auth Buttons (Forced to end of 3rd column) */}
+        <div className="hidden md:flex items-center gap-2 justify-self-end">
           <ThemeToggleButton />
           {authLoading ? (
             <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
@@ -126,7 +135,9 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Hamburger */}
+        {/* Mobile Hamburger (This is 'md:hidden', so it's removed 
+          from the grid layout on desktop and doesn't interfere) 
+        */}
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggleButton />
           <button
@@ -138,10 +149,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* --- MODIFIED MOBILE MENU --- */}
-      {/* This div is no longer conditionally rendered with `&&`.
-        It is positioned absolutely and animated with opacity/transform.
-      */}
+      {/* Mobile Menu (No changes here) */}
       <div
         className={`
           md:hidden flex flex-col gap-4 py-4 border-t
@@ -189,7 +197,6 @@ export default function Navbar() {
           ) : (
             <>
               <Button asChild variant="ghost" size="sm" className="w-all">
-                {/* Added onClick handler to close menu */}
                 <Link
                   to="/signin"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -198,7 +205,6 @@ export default function Navbar() {
                 </Link>
               </Button>
               <Button asChild size="sm" className="w-all">
-                {/* Added onClick handler to close menu */}
                 <Link
                   to="/signup"
                   onClick={() => setIsMobileMenuOpen(false)}
