@@ -93,7 +93,8 @@ export default function SignUp() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            
+          
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="firstName">First Name</Label>
               <Input
@@ -116,13 +117,15 @@ export default function SignUp() {
                 onChange={handleChange}
               />
             </div>
+          </div>
 
-            {/* Email */}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="your@mail.com" required value={formData.email} onChange={handleChange} />
-            </div>
+          {/* Email */}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" placeholder="your@mail.com" required value={formData.email} onChange={handleChange} />
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             {/* Password */}
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Password</Label>
@@ -134,17 +137,18 @@ export default function SignUp() {
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input id="confirmPassword" type="password" placeholder="Re-enter your password" required value={formData.confirmPassword} onChange={handleChange} />
             </div>
+          </div>
 
-            {(error || mutationError) && (
-              <p className="text-sm text-red-600 text-center">
-                {error || mutationError.message}
-              </p>
-            )}
+          {(error || mutationError) && (
+            <p className="text-sm text-red-600 text-center">
+              {error || mutationError.message}
+            </p>
+          )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing Up..." : "Sign Up"}
-            </Button>
-          </form>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Signing Up..." : "Sign Up"}
+          </Button>
+        </form>
 
       <div className="mt-4 text-center text-sm">
             <p className="text-muted-foreground">
