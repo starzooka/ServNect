@@ -29,8 +29,6 @@ const CREATE_USER_MUTATION = gql`
   }
 `;
 
-const GoogleIcon = (props) => ("http://www.w3.org/2000/svg")
-
 export default function SignUp() {
   const [formData, setFormData] = useState({
     firstName: "",
