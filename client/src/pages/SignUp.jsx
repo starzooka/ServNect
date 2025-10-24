@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@apollo/client/react";
 import { gql } from "@apollo/client";
-import { Eye, EyeOff } from "lucide-react"; // Import icons
+import { Eye, EyeOff } from "lucide-react"; // Make sure this is imported
 
 const CREATE_USER_MUTATION = gql`
   # MODIFIED: Updated arguments
@@ -40,8 +40,6 @@ export default function SignUp() {
   });
   const [error, setError] = useState("");
   const navigate = useNavigate();
-
-  // State for password visibility
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -52,8 +50,13 @@ export default function SignUp() {
         console.log("User created successfully:", data);
         navigate("/signin");
       },
+      // ✅ UPDATED THIS FUNCTION
       onError: (error) => {
-        setError(error.message);
+        if (error.message.includes("User already exists")) {
+          setError("An account with this email already exists. Please sign in.");
+        } else {
+          setError(error.message);
+        }
       },
     }
   );
@@ -61,7 +64,7 @@ export default function SignUp() {
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-    setError("");
+    setError(NULL);
   };
 
   const handleSubmit = async (e) => {
@@ -137,7 +140,7 @@ export default function SignUp() {
                 <Input 
                   id="password" 
                   type={showPassword ? "text" : "password"} 
-                  placeholder="Enter password" 
+                  placeholder="Enter your password" 
                   required 
                   value={formData.password} 
                   onChange={handleChange}
@@ -161,7 +164,7 @@ export default function SignUp() {
                 <Input 
                   id="confirmPassword" 
                   type={showConfirmPassword ? "text" : "password"} 
-                  placeholder="Re-enter password" 
+                  placeholder="Re-enter your password" 
                   required 
                   value={formData.confirmPassword} 
                   onChange={handleChange}
@@ -182,7 +185,8 @@ export default function SignUp() {
 
             {(error || mutationError) && (
               <p className="text-sm text-red-600 text-center">
-                {error || mutationError.message}
+                {/* Now displays the custom message or the mutationError message */}
+                {error || mutationError.message} 
               </p>
             )}
 
