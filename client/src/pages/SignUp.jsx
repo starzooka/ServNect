@@ -1,11 +1,12 @@
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useMutation } from "@apollo/client/react";
 import { gql } from "@apollo/client";
+import { Eye, EyeOff } from "lucide-react"; // Import icons
 
 const CREATE_USER_MUTATION = gql`
   # MODIFIED: Updated arguments
@@ -36,34 +37,38 @@ export default function SignUp() {
     email: "",
     password: "",
     confirmPassword: "",
-  })
-  const [error, setError] = useState("")
-  const navigate = useNavigate()
+  });
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  // State for password visibility
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [createUser, { loading, error: mutationError }] = useMutation(
     CREATE_USER_MUTATION,
     {
       onCompleted: (data) => {
-        console.log("User created successfully:", data)
-        navigate("/signin")
+        console.log("User created successfully:", data);
+        navigate("/signin");
       },
       onError: (error) => {
-        setError(error.message)
+        setError(error.message);
       },
     }
-  )
+  );
 
   const handleChange = (e) => {
-    const { id, value } = e.target
-    setFormData((prev) => ({ ...prev, [id]: value }))
-    setError("")
-  }
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+    setError("");
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match. Please try again.")
-      return
+      setError("Passwords do not match. Please try again.");
+      return;
     }
 
     try {
@@ -74,11 +79,11 @@ export default function SignUp() {
           email: formData.email,
           password: formData.password,
         },
-      })
+      });
     } catch (e) {
-      console.error("Submission error", e)
+      console.error("Submission error", e);
     }
-  }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-[90dvh] bg-background px-4">
@@ -93,64 +98,100 @@ export default function SignUp() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
-                id="firstName"
-                type="text"
-                placeholder="Your first name"
-                required
-                value={formData.firstName}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                type="text"
-                placeholder="Your last name"
-                required
-                value={formData.lastName}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          {/* Email */}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="your@mail.com" required value={formData.email} onChange={handleChange} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Password */}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="Enter your password" required value={formData.password} onChange={handleChange} />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  placeholder="Your first name"
+                  required
+                  value={formData.firstName}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  placeholder="Your last name"
+                  required
+                  value={formData.lastName}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
 
-            {/* Confirm Password */}
+            {/* Email */}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input id="confirmPassword" type="password" placeholder="Re-enter your password" required value={formData.confirmPassword} onChange={handleChange} />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="your@mail.com" required value={formData.email} onChange={handleChange} />
             </div>
-          </div>
 
-          {(error || mutationError) && (
-            <p className="text-sm text-red-600 text-center">
-              {error || mutationError.message}
-            </p>
-          )}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Password */}
+              <div className="flex flex-col gap-2 relative">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="Enter password" 
+                  required 
+                  value={formData.password} 
+                  onChange={handleChange}
+                  className="pr-10" // Add padding for icon
+                />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  className="absolute right-0 top-6 w-10 h-10 p-2.5" // Positioned button
+                  onClick={() => setShowPassword(prev => !prev)}
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing Up..." : "Sign Up"}
-          </Button>
-        </form>
+              {/* Confirm Password */}
+              <div className="flex flex-col gap-2 relative">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input 
+                  id="confirmPassword" 
+                  type={showConfirmPassword ? "text" : "password"} 
+                  placeholder="Re-enter password" 
+                  required 
+                  value={formData.confirmPassword} 
+                  onChange={handleChange}
+                  className="pr-10" // Add padding for icon
+                />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  className="absolute right-0 top-6 w-10 h-10 p-2.5" // Positioned button
+                  onClick={() => setShowConfirmPassword(prev => !prev)}
+                  aria-label="Toggle confirm password visibility"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
 
-      <div className="mt-4 text-center text-sm">
+            {(error || mutationError) && (
+              <p className="text-sm text-red-600 text-center">
+                {error || mutationError.message}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing Up..." : "Sign Up"}
+            </Button>
+          </form>
+
+          <div className="mt-4 text-center text-sm">
             <p className="text-muted-foreground">
               Already have an account?{" "}
               <Link

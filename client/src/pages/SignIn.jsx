@@ -1,4 +1,3 @@
-// SignIn.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { gql } from "@apollo/client";
 import { useMutation } from "@apollo/client/react";
 import { useSetAtom } from "jotai";
 import { userAtom } from "../atoms";
+import { Eye, EyeOff } from "lucide-react"; // Import icons
 
 // GraphQL mutation
 const LOGIN_MUTATION = gql`
@@ -43,6 +43,7 @@ const GoogleIcon = (props) => (
 export default function SignIn() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errorMessage, setErrorMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // State for visibility
   const setUser = useSetAtom(userAtom);
   const navigate = useNavigate();
 
@@ -117,16 +118,27 @@ export default function SignIn() {
                 onChange={handleChange}
               />
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 relative">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"} // Dynamic type
                 placeholder="Enter your password"
                 required
                 value={formData.password}
                 onChange={handleChange}
+                className="pr-10" // Padding for icon
               />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-0 top-6 w-10 h-10 p-2.5" // Positioned button
+                onClick={() => setShowPassword(prev => !prev)}
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
             </div>
 
             {errorMessage && (
