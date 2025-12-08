@@ -1,22 +1,10 @@
-import { useEffect } from "react";
-import { gql } from "@apollo/client";
-import { useQuery } from "@apollo/client/react";
+import { useEffect, useState } from "react";
 import { useSetAtom } from "jotai";
 import { userAtom, authLoadingAtom } from "../atoms";
 
-// ✅ GraphQL query for session check
-const ME_QUERY = gql`
-  query Me {
-    me {
-      id
-      firstName
-      lastName
-      email
-    }
-  }
-`;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-// ✅ Reusable Spinner Overlay Component
+// ✅ Reusable Spinner Overlay Component (unchanged)
 const SpinnerOverlay = () => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm">
     <div className="relative w-12 h-12">
@@ -28,23 +16,35 @@ const SpinnerOverlay = () => (
 export default function AuthWrapper({ children }) {
   const setUser = useSetAtom(userAtom);
   const setAuthLoading = useSetAtom(authLoadingAtom);
-
-  const { data, loading, error } = useQuery(ME_QUERY, {
-    fetchPolicy: "network-only", // Always check server
-  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading) {
-      if (data && data.me) {
-        setUser(data.me); // ✅ Set user if logged in
-      } else {
-        setUser(null); // ❌ Not logged in
-      }
-      setAuthLoading(false);
-    }
-  }, [loading, data, error, setUser, setAuthLoading]);
+    const checkAuth = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/users/me/current`, {
+          method: "GET",
+          credentials: "include",
+        });
 
-  // ✅ Show overlay spinner while checking auth
+        if (!res.ok) {
+          setUser(null);
+        } else {
+          const data = await res.json();
+          setUser(data || null);
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [setUser, setAuthLoading]);
+
+  // ✅ Block app render while checking session
   if (loading) {
     return <SpinnerOverlay />;
   }

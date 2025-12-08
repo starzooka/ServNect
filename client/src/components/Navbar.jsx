@@ -9,24 +9,17 @@ import {
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
 import { Menu, X } from "lucide-react";
-// src/components/Navbar.jsx
 import { useAtom, useAtomValue } from "jotai";
 import { userAtom, authLoadingAtom } from "../atoms";
-import { gql } from "@apollo/client";
-import { useMutation } from "@apollo/client/react";
+
+// ✅ Same env pattern as SignIn / SignUp / AuthWrapper
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const navigationLinks = [
   { to: "/", label: "Home" },
   { to: "/explore", label: "Explore" },
   { to: "/about", label: "About" },
 ];
-
-// ✅ This definition was missing from my previous snippet
-const LOGOUT_MUTATION = gql`
-  mutation Logout {
-    logout
-  }
-`;
 
 export default function Navbar() {
   const location = useLocation();
@@ -37,22 +30,21 @@ export default function Navbar() {
   const [user, setUser] = useAtom(userAtom);
   const authLoading = useAtomValue(authLoadingAtom);
 
-  // ✅ Get `client` from useMutation
-  const [logout, { client }] = useMutation(LOGOUT_MUTATION, {
-    onCompleted: async () => {
-      setUser(null); // Clear the global state
-      await client.resetStore(); // Reset the Apollo cache
-      navigate("/signin"); // Navigate after reset
-    },
-    onError: async (err) => {
-      console.error("Logout failed:", err);
+  // ✅ REST-based logout instead of GraphQL mutation
+  const handleLogout = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include", // important so cookie is sent
+      });
+    } catch (err) {
+      console.error("Logout request failed:", err);
+      // even if request fails, we'll still clear local state below
+    } finally {
       setUser(null);
-      await client.resetStore(); // Also reset on error
       navigate("/signin");
-    },
-  });
-
-  const handleLogout = () => logout();
+    }
+  };
 
   useEffect(() => {
     setActiveLink(location.pathname);
@@ -65,15 +57,8 @@ export default function Navbar() {
 
   return (
     <header className="border-b px-4 md:px-6 bg-background sticky top-0 z-50">
-      
-      {/* --- MODIFIED --- */}
-      {/* On mobile (default), it's 'flex justify-between'.
-        On desktop (md:), it becomes a 3-column grid to force true centering.
-        'md:justify-normal' resets the 'justify-between' from flex.
-      */}
       <div className="flex md:grid md:grid-cols-3 h-16 items-center justify-between md:justify-normal">
-        
-        {/* Logo (Stays in 1st column) */}
+        {/* Logo */}
         <div className="flex items-center gap-2">
           <Link
             to="/"
@@ -84,8 +69,7 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* --- MODIFIED --- */}
-        {/* Desktop NavLinks (Forced to center of 2nd column) */}
+        {/* Desktop nav links */}
         <NavigationMenu className="hidden md:block justify-self-center">
           <NavigationMenuList className="flex gap-6">
             {navigationLinks.map((link, index) => (
@@ -108,8 +92,7 @@ export default function Navbar() {
           </NavigationMenuList>
         </NavigationMenu>
 
-        {/* --- MODIFIED --- */}
-        {/* Desktop Auth Buttons (Forced to end of 3rd column) */}
+        {/* Desktop auth buttons */}
         <div className="hidden md:flex items-center gap-2 justify-self-end">
           <ThemeToggleButton />
           {authLoading ? (
@@ -135,9 +118,7 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Hamburger (This is 'md:hidden', so it's removed 
-          from the grid layout on desktop and doesn't interfere) 
-        */}
+        {/* Mobile hamburger */}
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggleButton />
           <button
@@ -149,7 +130,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu (No changes here) */}
+      {/* Mobile menu */}
       <div
         className={`
           md:hidden flex flex-col gap-4 py-4 border-t

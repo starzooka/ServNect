@@ -1,29 +1,23 @@
 // server.js
 import dotenv from 'dotenv';
 dotenv.config();
-import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@as-integrations/express4';
-import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import jwt from 'jsonwebtoken';
-import { ObjectId } from 'mongodb';
-
-import { typeDefs } from './schema.js';
-import { resolvers } from './resolvers.js';
-import { db } from './db.js';
+import { authMiddleware } from './authMiddleware.js';
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
 
 const app = express();
 const httpServer = http.createServer(app);
-const JWT_SECRET = process.env.JWT_SECRET; // This is now loaded correctly
+const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
   console.error(
     '🔴 FATAL ERROR: JWT_SECRET not defined in .env file. Shutting down.'
   );
-  process.exit(1); // Exit if the secret is missing
+  process.exit(1);
 }
 
 // ------------------- CORS & Middleware -------------------
@@ -33,8 +27,7 @@ app.use(
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       const allowedOrigins = [
-        'http://localhost:5173',
-        'https://servnect.vercel.app'
+        'http://localhost:5173'
       ];
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -49,48 +42,18 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// ------------------- Apollo Server -------------------
+// Attach user (like GraphQL context did)
+app.use(authMiddleware);
 
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
-});
+// ------------------- REST Routes -------------------
 
-await server.start();
+// Auth (signup, login, logout)
+app.use('/auth', authRoutes);
 
-// GraphQL middleware with context (for auth)
-app.use(
-  '/',
-  expressMiddleware(server, {
-    context: async ({ req, res }) => {
-      const token = req.cookies.token;
-      let user = null;
+// Users (get all, get by id, me)
+app.use('/users', userRoutes);
 
-      if (token) { // We can safely use JWT_SECRET here
-        try {
-          const decoded = jwt.verify(token, JWT_SECRET);
-
-          const userData = await db
-            .collection('users')
-            .findOne({ _id: new ObjectId(String(decoded.userId)) });
-
-          if (userData) {
-            const { password, ...userWithoutPassword } = userData;
-            user = { ...userWithoutPassword, id: userData._id.toString() };
-          }
-        } catch (err) {
-          console.error('Invalid or expired token:', err.message);
-        }
-      }
-
-      // ✅ FIX: Pass the loaded JWT_SECRET to the resolvers
-      return { req, res, db, user, JWT_SECRET };
-    },
-  })
-);
-
-// ------------------- Health Check (Optional) -------------------
+// ------------------- Health Check -------------------
 
 app.get('/ping', (req, res) => {
   res.status(200).json({ message: 'pong', timestamp: new Date() });
@@ -101,5 +64,5 @@ app.get('/ping', (req, res) => {
 const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Server ready at port ${PORT}`);
+  console.log(`🚀 Express server ready at port ${PORT}`);
 });
