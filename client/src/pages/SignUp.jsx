@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050/api";
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -16,43 +17,59 @@ export default function SignUp() {
     password: "",
     confirmPassword: "",
   });
-  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
-    setError("");
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+    setErrorMessage("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    setLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+    const { firstName, lastName, email, password, confirmPassword } = formData;
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-
     try {
-      const res = await fetch(`${BACKEND_URL}/auth/signup`, {
+      const res = await fetch(`${BACKEND_URL}/auth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(formData),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, lastName, email, password }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
 
       if (!res.ok) {
-        setError(data.error || "Signup failed");
+        setErrorMessage(
+          data?.message || data?.error || "Sign up failed. Try again."
+        );
         return;
       }
 
+      // Backend returns: { id, firstName, lastName, email }
+      // After signup, send user to login page
       navigate("/signin");
-    } catch {
-      setError("Server error");
+    } catch (err) {
+      console.error("Sign up error:", err);
+      setErrorMessage("Server error. Try again.");
     } finally {
       setLoading(false);
     }
@@ -61,20 +78,75 @@ export default function SignUp() {
   return (
     <div className="flex items-center justify-center min-h-[90dvh] px-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Create an Account</CardTitle>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Create an account</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input id="firstName" placeholder="First Name" onChange={handleChange} />
-            <Input id="lastName" placeholder="Last Name" onChange={handleChange} />
-            <Input id="email" placeholder="Email" onChange={handleChange} />
-            <Input id="password" type="password" placeholder="Password" onChange={handleChange} />
-            <Input id="confirmPassword" type="password" placeholder="Confirm Password" onChange={handleChange} />
+            <div>
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+              />
+            </div>
 
-            {error && <p className="text-red-600">{error}</p>}
+            <div>
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+              />
+            </div>
 
-            <Button disabled={loading}>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+              />
+            </div>
+
+            {errorMessage && (
+              <p className="text-red-600 text-sm">{errorMessage}</p>
+            )}
+
+            <Button type="submit" disabled={loading}>
               {loading ? "Signing Up..." : "Sign Up"}
             </Button>
           </form>

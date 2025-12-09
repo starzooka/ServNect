@@ -1,43 +1,36 @@
 // authMiddleware.js
-import jwt from 'jsonwebtoken';
-import { ObjectId } from 'mongodb';
-import { db } from './db.js';
+import jwt from "jsonwebtoken";
+import { ObjectId } from "mongodb";
+import { db } from "./db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-if (!JWT_SECRET) {
-  console.error(
-    '🔴 FATAL ERROR: JWT_SECRET not defined in .env file. Shutting down.'
-  );
-  process.exit(1);
-}
-
-export const authMiddleware = async (req, res, next) => {
+async function authMiddleware(req, res, next) {
   try {
-    const token = req.cookies.token;
-    if (!token) {
-      req.user = null;
-      return next();
-    }
+    const token =
+      req.cookies?.token ||
+      (req.headers.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.split(" ")[1]
+        : null);
+
+    if (!token) return res.status(401).json({ message: "Not authenticated" });
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const userData = await db
-      .collection('users')
-      .findOne({ _id: new ObjectId(String(decoded.userId)) });
+    const user = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(decoded.userId) });
 
-    if (!userData) {
-      req.user = null;
-      return next();
-    }
+    if (!user) return res.status(401).json({ message: "User not found" });
 
-    const { password, ...userWithoutPassword } = userData;
-    req.user = { ...userWithoutPassword, id: userData._id.toString() };
+    const { password, ...userdata } = user;
+    req.user = { id: user._id.toString(), ...userdata };
 
     next();
   } catch (err) {
-    console.error('Invalid or expired token:', err.message);
-    req.user = null;
-    next();
+    console.log("AUTH ERROR:", err.message);
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
-};
+}
+
+export default authMiddleware;  // ← FIXED EXPORT
