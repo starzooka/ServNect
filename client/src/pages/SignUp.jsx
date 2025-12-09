@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 
 const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050/api";
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -17,7 +17,9 @@ export default function SignUp() {
     password: "",
     confirmPassword: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,8 +33,8 @@ export default function SignUp() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage("");
     setLoading(true);
+    setErrorMessage("");
 
     const { firstName, lastName, email, password, confirmPassword } = formData;
 
@@ -47,15 +49,15 @@ export default function SignUp() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email, password }),
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email: email.trim(),
+          password,
+        }),
       });
 
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
         setErrorMessage(
@@ -64,8 +66,6 @@ export default function SignUp() {
         return;
       }
 
-      // Backend returns: { id, firstName, lastName, email }
-      // After signup, send user to login page
       navigate("/signin");
     } catch (err) {
       console.error("Sign up error:", err);
@@ -81,6 +81,7 @@ export default function SignUp() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Create an account</CardTitle>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
@@ -111,6 +112,7 @@ export default function SignUp() {
               />
             </div>
 
+            {/* Password */}
             <div>
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -125,21 +127,35 @@ export default function SignUp() {
                   variant="ghost"
                   size="icon"
                   className="absolute right-1 top-1"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPassword((prev) => !prev)}
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </Button>
               </div>
             </div>
 
+            {/* Confirm Password */}
             <div>
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type={showPassword ? "text" : "password"}
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1"
+                  onClick={() =>
+                    setShowConfirmPassword((prev) => !prev)
+                  }
+                >
+                  {showConfirmPassword ? <EyeOff /> : <Eye />}
+                </Button>
+              </div>
             </div>
 
             {errorMessage && (
