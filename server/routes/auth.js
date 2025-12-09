@@ -3,15 +3,12 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../db.js";
-import authMiddleware from "../authMiddleware.js"; // you already have this file
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const isProduction = process.env.NODE_ENV === "production";
 
-if (!JWT_SECRET) {
-  throw new Error("❌ JWT_SECRET missing in .env");
-}
+if (!JWT_SECRET) throw new Error("❌ JWT_SECRET missing in .env");
 
 // ---------- SIGN UP ----------
 router.post("/register", async (req, res) => {
@@ -23,9 +20,8 @@ router.post("/register", async (req, res) => {
     }
 
     const existingUser = await db.collection("users").findOne({ email });
-    if (existingUser) {
+    if (existingUser)
       return res.status(400).json({ message: "User already exists" });
-    }
 
     const hashed = await bcrypt.hash(password, 12);
 
@@ -51,20 +47,18 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ---------- LOGIN (optional, for later) ----------
+// ---------- LOGIN ----------
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const user = await db.collection("users").findOne({ email });
-    if (!user) {
+    if (!user)
       return res.status(400).json({ message: "Invalid email or password" });
-    }
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
+    if (!valid)
       return res.status(400).json({ message: "Invalid email or password" });
-    }
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
       expiresIn: "7d",
@@ -77,7 +71,7 @@ router.post("/login", async (req, res) => {
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
-    const { password: _, ...userData } = user;
+    const { password: _pw, ...userData } = user;
 
     return res.json({
       token,
@@ -89,11 +83,16 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ---------- CURRENT USER (optional) ----------
-router.get("/me", authMiddleware, (req, res) => {
-  res.json(req.user);
+// ---------- ME (quick current user) ----------
+router.get("/me", (req, res) => {
+  // authMiddleware already ran in server.js and set req.user (or null)
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  return res.json(req.user);
 });
 
+// ---------- LOGOUT ----------
 router.post("/logout", (req, res) => {
   res.clearCookie("token");
   res.json({ message: "Logged out" });
