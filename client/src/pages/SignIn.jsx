@@ -8,7 +8,8 @@ import { useSetAtom } from "jotai";
 import { userAtom } from "../atoms";
 import { Eye, EyeOff } from "lucide-react";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
 
 export default function SignIn() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -37,16 +38,38 @@ export default function SignIn() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        // ignore JSON parse error, will handle below
+      }
 
       if (!res.ok) {
-        setErrorMessage(data.error || "Login failed");
+        // our backend sends { message: "Invalid email or password" } or similar
+        setErrorMessage(
+          data?.message || data?.error || "Login failed. Please try again."
+        );
         return;
       }
 
+      // expected { token, user: {...} }
+      if (!data?.user) {
+        setErrorMessage("Unexpected server response. Please try again.");
+        return;
+      }
+
+      // store user in global state (Jotai)
       setUser(data.user);
-      navigate("/");
-    } catch {
+
+      // optional: also store in localStorage for persistence
+      try {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      } catch {}
+
+      navigate("/"); // go to home/dashboard
+    } catch (err) {
+      console.error("Login request error:", err);
       setErrorMessage("Server error. Try again.");
     } finally {
       setLoading(false);
@@ -62,7 +85,13 @@ export default function SignIn() {
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" value={formData.email} onChange={handleChange} />
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
 
             <Label htmlFor="password">Password</Label>
             <div className="relative">
@@ -71,19 +100,22 @@ export default function SignIn() {
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handleChange}
+                required
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="absolute right-1 top-1"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowPassword((prev) => !prev)}
               >
                 {showPassword ? <EyeOff /> : <Eye />}
               </Button>
             </div>
 
-            {errorMessage && <p className="text-red-600">{errorMessage}</p>}
+            {errorMessage && (
+              <p className="text-red-600 text-sm">{errorMessage}</p>
+            )}
 
             <Button type="submit" disabled={loading}>
               {loading ? "Signing In..." : "Sign In"}
