@@ -1,35 +1,39 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+import { useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
+import SidebarLayout from "./components/SidebarLayout.jsx";
+import DashboardHome from "./components/DashboardHome.jsx";
+import BookingsPage from "./pages/BookingsPage.jsx";
+import MessagesPage from "./pages/MessagesPage.jsx";
+import ServicesPage from "./pages/ServicesPage.jsx";
+import AccountPage from "./pages/AccountPage.jsx";
+import AppPreloader from "./components/AppPreloader"; // ✅ import preloader
+
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [loading, setLoading] = useState(true);
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+  useEffect(() => {
+    // Simulate loading delay (you can also replace this with actual logic like checking auth/session)
+    const timer = setTimeout(() => setLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <AppPreloader loading={true} />; // ✅ Show preloader before app loads
+  }
+
+return (
+    <Routes>
+      <Route path="/" element={<SidebarLayout />}>
+        <Route index element={<DashboardHome />} />
+        <Route path="bookings" element={<BookingsPage />} />
+        <Route path="messages" element={<MessagesPage />} />
+        <Route path="services" element={<ServicesPage />} />
+        <Route path="account" element={<AccountPage />} />
+      </Route>
+    </Routes>
+  );
 }
 
-export default App
+export default App;
