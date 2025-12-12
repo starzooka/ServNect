@@ -1,6 +1,8 @@
 // src/App.jsx
 import { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
+import { useSetAtom } from "jotai";
+
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import ExploreServices from "./pages/Explore";
@@ -8,19 +10,44 @@ import About from "./pages/About";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Professionals from "./pages/Professionals";
-import AppPreloader from "./components/AppPreloader"; // ✅ import preloader
+import AppPreloader from "./components/AppPreloader";
+import { userAtom } from "./atoms";
+
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
 
 function App() {
   const [loading, setLoading] = useState(true);
+  const setUser = useSetAtom(userAtom);
 
   useEffect(() => {
-    // Simulate loading delay (you can also replace this with actual logic like checking auth/session)
-    const timer = setTimeout(() => setLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+    console.log("🔍 Checking auth...");
+
+    const checkAuth = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/auth/me`, {
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          setUser(null);
+        } else {
+          const me = await res.json();
+          setUser(me);
+        }
+      } catch (err) {
+        console.error("Failed to fetch /auth/me:", err);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [setUser]);
 
   if (loading) {
-    return <AppPreloader loading={true} />; // ✅ Show preloader before app loads
+    return <AppPreloader loading={true} />;
   }
 
   return (

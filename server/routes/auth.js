@@ -8,7 +8,7 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 const isProduction = process.env.NODE_ENV === "production";
 
-if (!JWT_SECRET) throw new Error("❌ JWT_SECRET missing in .env");
+if (!JWT_SECRET) throw new Error("JWT_SECRET missing in .env");
 
 // ---------- SIGN UP ----------
 router.post("/register", async (req, res) => {
