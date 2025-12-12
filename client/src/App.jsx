@@ -12,6 +12,8 @@ import SignUp from "./pages/SignUp";
 import Professionals from "./pages/Professionals";
 import AppPreloader from "./components/AppPreloader";
 import { userAtom } from "./atoms";
+import Profile from "./pages/Profile";
+
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
@@ -60,6 +62,7 @@ function App() {
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/professionals/:category" element={<Professionals />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </>
   );
