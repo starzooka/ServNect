@@ -63,6 +63,7 @@ function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/professionals/:category" element={<Professionals />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/bookings" element={<div className="p-6">Bookings page coming soon</div>} />
       </Routes>
     </>
   );

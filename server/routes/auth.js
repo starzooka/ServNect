@@ -3,6 +3,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../db.js";
+import bcrypt from "bcrypt";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -96,6 +97,45 @@ router.get("/me", (req, res) => {
 router.post("/logout", (req, res) => {
   res.clearCookie("token");
   res.json({ message: "Logged out" });
+});
+
+router.put("/change-password", async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: "All fields required" });
+  }
+
+  try {
+    const user = await db.collection("users").findOne({
+      _id: new ObjectId(req.user.id),
+    });
+
+    const isMatch = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password incorrect" });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+
+    await db.collection("users").updateOne(
+      { _id: user._id },
+      { $set: { password: hashed } }
+    );
+
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("Change password error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 export default router;

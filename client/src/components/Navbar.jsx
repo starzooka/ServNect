@@ -99,14 +99,24 @@ export default function Navbar() {
             <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
           ) : user ? (
             <>
-              <span className="text-sm font-medium text-muted-foreground">
-                Welcome, {user.firstName}!
-              </span>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                Logout
-              </Button>
-            </>
-          ) : (
+            <span className="text-sm font-medium text-muted-foreground">
+              Welcome, {user.firstName}!
+            </span>
+
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/profile">View Profile</Link>
+            </Button>
+
+            {/* optional */}
+            {/* <Button asChild variant="ghost" size="sm">
+              <Link to="/bookings">My Bookings</Link>
+            </Button> */}
+
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              Logout
+            </Button>
+          </>
+        ) : (
             <>
               <Button asChild variant="ghost" size="sm">
                 <Link to="/signin">Sign In</Link>
