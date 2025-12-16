@@ -10,7 +10,6 @@ export default function SidebarLayout() {
     { to: "", label: "Dashboard", icon: Icons.grid },
     { to: "bookings", label: "Bookings", icon: Icons.calendar },
     { to: "messages", label: "Messages", icon: Icons.chat },
-    { to: "services", label: "Services", icon: Icons.package },
     { to: "account", label: "Account", icon: Icons.user },
   ]
 

@@ -3,7 +3,6 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../db.js";
-import bcrypt from "bcrypt";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;

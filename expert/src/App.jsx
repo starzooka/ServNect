@@ -2,13 +2,12 @@
 import { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import SidebarLayout from "./components/SidebarLayout.jsx";
-import DashboardHome from "./components/DashboardHome.jsx";
+import DashboardHome from "./pages/DashboardHome.jsx";
 import BookingsPage from "./pages/BookingsPage.jsx";
 import MessagesPage from "./pages/MessagesPage.jsx";
-import ServicesPage from "./pages/ServicesPage.jsx";
 import AccountPage from "./pages/AccountPage.jsx";
 import AppPreloader from "./components/AppPreloader"; // ✅ import preloader
-
+import SignUp from "./pages/SignUp-Expert.jsx";
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -29,8 +28,8 @@ return (
         <Route index element={<DashboardHome />} />
         <Route path="bookings" element={<BookingsPage />} />
         <Route path="messages" element={<MessagesPage />} />
-        <Route path="services" element={<ServicesPage />} />
         <Route path="account" element={<AccountPage />} />
+        <Route path="signup" element={<SignUp />} />
       </Route>
     </Routes>
   );

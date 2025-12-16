@@ -75,22 +75,7 @@ export default function DashboardHome() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3">
-              <Button asChild>
-                <Link to="/expert/services">Create new service</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link to="/expert/bookings">Manage bookings</Link>
-              </Button>
-              <Button variant="ghost" onClick={() => alert("Exporting reports (demo)")}>Export report</Button>
-            </div>
-          </CardContent>
-        </Card>
+      
       </div>
     </div>
   )
