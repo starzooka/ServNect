@@ -56,34 +56,55 @@ export default function SignIn() {
   return (
     <div className="flex items-center justify-center min-h-[90dvh] px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+        <CardHeader className="text-center space-y-1">
+          <CardTitle className="text-2xl">
+            Let’s get you back to work
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Sign in to manage your services and bookings
+          </p>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" value={formData.email} onChange={handleChange} />
-
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
+            {/* Email */}
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={formData.email}
                 onChange={handleChange}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff /> : <Eye />}
-              </Button>
             </div>
 
-            {errorMessage && <p className="text-red-600">{errorMessage}</p>}
+            {/* Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1"
+                  onClick={() => setShowPassword((p) => !p)}
+                >
+                  {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
+              </div>
+            </div>
+
+            {errorMessage && (
+              <p className="text-sm text-red-600">{errorMessage}</p>
+            )}
 
             <Button type="submit" disabled={loading}>
               {loading ? "Signing In..." : "Sign In"}
@@ -91,7 +112,7 @@ export default function SignIn() {
           </form>
 
           <p className="text-center mt-4 text-sm">
-            No account? <Link to="/signup">Sign up</Link>
+            Not registered yet? <Link to="/signup">Sign up</Link>
           </p>
         </CardContent>
       </Card>

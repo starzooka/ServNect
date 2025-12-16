@@ -3,8 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "lucide-react";
-
+import { Calendar, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -13,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Eye, EyeOff } from "lucide-react";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
@@ -62,20 +60,17 @@ export default function ExpertSignUp() {
     setLoading(true);
     setErrorMessage("");
 
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      service,
-      dob,
-      location,
-      password,
-      confirmPassword,
-    } = formData;
-
-    if (password !== confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       setErrorMessage("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    const dobRegex =
+      /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+
+    if (!dobRegex.test(formData.dob)) {
+      setErrorMessage("Date of birth must be in DD/MM/YYYY format");
       setLoading(false);
       return;
     }
@@ -85,16 +80,7 @@ export default function ExpertSignUp() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email: email.trim(),
-          phone,
-          service,
-          dob,
-          location,
-          password,
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await res.json().catch(() => null);
@@ -105,8 +91,7 @@ export default function ExpertSignUp() {
       }
 
       navigate("/signin");
-    } catch (err) {
-      console.error("Expert sign up error:", err);
+    } catch {
       setErrorMessage("Server error. Try again.");
     } finally {
       setLoading(false);
@@ -116,40 +101,63 @@ export default function ExpertSignUp() {
   return (
     <div className="flex items-center justify-center min-h-[90dvh] px-4">
       <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center space-y-1">
           <CardTitle className="text-2xl">
-            Expert Registration
+            Join as a Service Professional
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Create your profile and start connecting with customers
+          </p>
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* First name */}
-            <div>
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
+            <div className="space-y-1.5">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" value={formData.firstName} onChange={handleChange} />
+              <Input
+                id="firstName"
+                placeholder="John"
+                value={formData.firstName}
+                onChange={handleChange}
+              />
             </div>
 
-            {/* Last name */}
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" value={formData.lastName} onChange={handleChange} />
+              <Input
+                id="lastName"
+                placeholder="Doe"
+                value={formData.lastName}
+                onChange={handleChange}
+              />
             </div>
 
-            {/* Email */}
-            <div className="sm:col-span-2">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={formData.email} onChange={handleChange} />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={handleChange}
+              />
             </div>
 
-            {/* Phone */}
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" type="tel" value={formData.phone} onChange={handleChange} />
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="9876543210"
+                value={formData.phone}
+                onChange={handleChange}
+              />
             </div>
 
-            {/* Service dropdown */}
-            <div>
+            <div className="space-y-1.5">
               <Label>Service Provided</Label>
               <Select
                 value={formData.service}
@@ -157,8 +165,8 @@ export default function ExpertSignUp() {
                   setFormData((p) => ({ ...p, service: val }))
                 }
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select service" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select your service" />
                 </SelectTrigger>
                 <SelectContent>
                   {SERVICES.map((s) => (
@@ -171,28 +179,61 @@ export default function ExpertSignUp() {
             </div>
 
             {/* DOB */}
-            <div>
-  <Label htmlFor="dob">Date of Birth</Label>
+            {/* DOB — AUTO FORMAT + CALENDAR */}
+<div className="space-y-1.5">
+  <Label>Date of Birth</Label>
 
   <div className="relative">
+    {/* Visible input */}
     <Input
-      id="dob"
-      type="date"
+      type="text"
+      placeholder="DD/MM/YYYY"
       value={formData.dob}
-      onChange={handleChange}
+      onChange={(e) => {
+        let value = e.target.value.replace(/\D/g, ""); // digits only
+
+        if (value.length > 8) value = value.slice(0, 8);
+
+        if (value.length >= 5) {
+          value = `${value.slice(0, 2)}/${value.slice(2, 4)}/${value.slice(4)}`;
+        } else if (value.length >= 3) {
+          value = `${value.slice(0, 2)}/${value.slice(2)}`;
+        }
+
+        setFormData((p) => ({ ...p, dob: value }));
+      }}
       className="pr-10"
     />
 
     {/* Calendar icon */}
-    <Calendar
-      className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+    <button
+      type="button"
+      onClick={() => document.getElementById("dob-hidden").showPicker()}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      aria-label="Open calendar"
+    >
+      <Calendar className="h-4 w-4" />
+    </button>
+
+    {/* Hidden native date input */}
+    <input
+      id="dob-hidden"
+      type="date"
+      className="absolute inset-0 opacity-0 pointer-events-none"
+      onChange={(e) => {
+        if (!e.target.value) return;
+        const [year, month, day] = e.target.value.split("-");
+        setFormData((p) => ({
+          ...p,
+          dob: `${day}/${month}/${year}`,
+        }));
+      }}
     />
   </div>
 </div>
 
 
-            {/* Location */}
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="location">Service Location</Label>
               <Input
                 id="location"
@@ -202,13 +243,13 @@ export default function ExpertSignUp() {
               />
             </div>
 
-            {/* Password */}
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="Create a secure password"
                   value={formData.password}
                   onChange={handleChange}
                 />
@@ -224,13 +265,13 @@ export default function ExpertSignUp() {
               </div>
             </div>
 
-            {/* Confirm Password */}
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />
@@ -247,7 +288,7 @@ export default function ExpertSignUp() {
             </div>
 
             {errorMessage && (
-              <p className="sm:col-span-2 text-red-600 text-sm">
+              <p className="sm:col-span-2 text-sm text-red-600">
                 {errorMessage}
               </p>
             )}
