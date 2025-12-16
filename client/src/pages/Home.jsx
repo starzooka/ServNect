@@ -55,6 +55,32 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+      <section className="mt-20 py-16 bg-primary/5 border-t">
+  <div className="max-w-5xl mx-auto px-6 text-center">
+    <h2 className="text-3xl md:text-4xl font-bold text-primary">
+      Are you a skilled professional?
+    </h2>
+
+    <p className="mt-4 text-muted-foreground text-lg max-w-2xl mx-auto">
+      Join ServNect as an expert and start getting hired by customers looking
+      for your skills.
+    </p>
+
+    <div className="mt-8 flex justify-center gap-4">
+      <Button asChild size="lg">
+        <Link to="/become-expert">Become an Expert</Link>
+      </Button>
+
+      <Button asChild size="lg" variant="outline">
+        <Link to="/explore">Explore Services</Link>
+      </Button>
+    </div>
+  </div>
+</section>
+
     </section>
+    
+
+    
   )
 }

@@ -95,23 +95,24 @@ export default function Navbar() {
         {/* Desktop auth buttons */}
         <div className="hidden md:flex items-center gap-2 justify-self-end">
           <ThemeToggleButton />
-          {authLoading ? (
-  <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
-          ) : user ? (
-            <>
-              <span className="text-sm font-medium text-muted-foreground">
-                Welcome, {user.firstName}!
-              </span>
+            {authLoading ? (
+              <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
+            ) : user ? (
+              <>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Welcome, {user.firstName}!
+                </span>
 
-              <Button asChild variant="outline" size="sm">
-                <Link to="/become-expert">Become an Expert</Link>
-              </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/profile">Profile</Link>
+                </Button>
+                
+                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
 
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                Logout
-              </Button>
-            </>
-          ) : (
   <>
     <Button asChild variant="ghost" size="sm">
       <Link to="/signin">Sign In</Link>
