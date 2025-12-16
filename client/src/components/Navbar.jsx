@@ -96,36 +96,32 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-2 justify-self-end">
           <ThemeToggleButton />
           {authLoading ? (
-            <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
+  <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
           ) : user ? (
             <>
-            <span className="text-sm font-medium text-muted-foreground">
-              Welcome, {user.firstName}!
-            </span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Welcome, {user.firstName}!
+              </span>
 
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/profile">View Profile</Link>
-            </Button>
-
-            {/* optional */}
-            {/* <Button asChild variant="ghost" size="sm">
-              <Link to="/bookings">My Bookings</Link>
-            </Button> */}
-
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              Logout
-            </Button>
-          </>
-        ) : (
-            <>
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/signin">Sign In</Link>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/become-expert">Become an Expert</Link>
               </Button>
-              <Button asChild size="sm">
-                <Link to="/signup">Get Started</Link>
+
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Logout
               </Button>
             </>
+          ) : (
+  <>
+    <Button asChild variant="ghost" size="sm">
+      <Link to="/signin">Sign In</Link>
+    </Button>
+    <Button asChild size="sm">
+      <Link to="/signup">Get Started</Link>
+    </Button>
+  </>
           )}
+
         </div>
 
         {/* Mobile hamburger */}
@@ -167,6 +163,15 @@ export default function Navbar() {
             {link.label}
           </Link>
         ))}
+
+        {user && (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/become-expert">Become an Expert</Link>
+          </Button>
+        )}
+
+
+
 
         <div className="border-t pt-4 mt-2 flex flex-col gap-2 px-2">
           {authLoading ? (

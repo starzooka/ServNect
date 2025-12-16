@@ -118,4 +118,87 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+/**
+ * PUT /users/become-expert
+ * Convert logged-in user into expert
+ */
+router.put("/become-expert", async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const {
+    category,
+    experience,
+    price,
+    availability,
+    bio,
+    location,
+  } = req.body;
+
+  if (!category || !price) {
+    return res.status(400).json({
+      message: "Category and price are required",
+    });
+  }
+
+  try {
+    await db.collection("users").updateOne(
+      { _id: new ObjectId(req.user.id) },
+      {
+        $set: {
+          role: "expert",
+          category,
+          experience,
+          price,
+          availability,
+          bio,
+          location,
+        },
+      }
+    );
+
+    const updated = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(req.user.id) });
+
+    const { password, ...safeUser } = updated;
+
+    res.json({
+      message: "You are now an expert 🎉",
+      user: { id: updated._id.toString(), ...safeUser },
+    });
+  } catch (err) {
+    console.error("Become expert error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * GET /users/experts/:category
+ */
+router.get("/experts/:category", async (req, res) => {
+  try {
+    const experts = await db
+      .collection("users")
+      .find({
+        role: "expert",
+        category: req.params.category,
+      })
+      .project({ password: 0 })
+      .toArray();
+
+    res.json(
+      experts.map((u) => ({
+        id: u._id.toString(),
+        ...u,
+      }))
+    );
+  } catch (err) {
+    console.error("Get experts error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 export default router;
