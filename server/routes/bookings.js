@@ -11,42 +11,30 @@ const router = express.Router();
  * Client creates a booking
  */
 router.post("/", authMiddleware, async (req, res) => {
+  const { expertId, category } = req.body;
+
+  if (!expertId || !category) {
+    return res.status(400).json({ message: "Missing fields" });
+  }
+
   try {
-    const { serviceId, scheduledAt } = req.body;
-
-    if (!serviceId || !scheduledAt) {
-      return res.status(400).json({ message: "serviceId and date required" });
-    }
-
-    // Get service
-    const service = await db
-      .collection("services")
-      .findOne({ _id: new ObjectId(serviceId) });
-
-    if (!service) {
-      return res.status(404).json({ message: "Service not found" });
-    }
-
     const booking = {
-      clientId: new ObjectId(req.user.id),
-      expertId: service.expertId,
-      serviceId: new ObjectId(serviceId),
-      scheduledAt: new Date(scheduledAt),
+      userId: new ObjectId(req.user.id),
+      expertId: new ObjectId(expertId),
+      category,
       status: "pending",
       createdAt: new Date(),
     };
 
-    const result = await db.collection("bookings").insertOne(booking);
+    await db.collection("bookings").insertOne(booking);
 
-    res.status(201).json({
-      id: result.insertedId.toString(),
-      status: booking.status,
-    });
+    res.json({ message: "Booking request sent ✅" });
   } catch (err) {
     console.error("Create booking error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 /**
  * GET /bookings/client
@@ -133,6 +121,56 @@ router.put("/:id/status", authMiddleware, async (req, res) => {
     res.json({ message: "Booking updated", status });
   } catch (err) {
     console.error("Update booking error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/", async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  const { expertId, category } = req.body;
+
+  if (!expertId || !category) {
+    return res.status(400).json({ message: "Missing fields" });
+  }
+
+  try {
+    const booking = {
+      userId: new ObjectId(req.user.id),
+      expertId: new ObjectId(expertId),
+      category,
+      status: "pending",
+      createdAt: new Date(),
+    };
+
+    await db.collection("bookings").insertOne(booking);
+
+    res.json({ message: "Booking request sent ✅" });
+  } catch (err) {
+    console.error("Create booking error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * GET /bookings/my
+ * User's bookings
+ */
+router.get("/my", async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
+  try {
+    const bookings = await db
+      .collection("bookings")
+      .find({ userId: new ObjectId(req.user.id) })
+      .toArray();
+
+    res.json(bookings);
+  } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 });

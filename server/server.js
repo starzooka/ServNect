@@ -12,6 +12,7 @@ import authMiddleware from "./authMiddleware.js";
 import "./db.js";
 import servicesRoutes from "./routes/services.js";
 import bookingsRoutes from "./routes/bookings.js";
+import expertRoutes from "./routes/experts.js";
 
 const app = express();
 const PORT = process.env.PORT || 5050;
@@ -45,7 +46,7 @@ app.use("/auth", authRoutes);
 // Users (me/current, list, by id)
 app.use("/users", userRoutes);
 
-
+app.use("/experts", expertRoutes);
 
 //Start Server
 app.listen(PORT, () =>

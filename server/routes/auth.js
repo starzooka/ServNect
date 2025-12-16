@@ -1,8 +1,13 @@
-// routes/auth.js
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../db.js";
+<<<<<<< HEAD
+=======
+import { ObjectId } from "mongodb";
+
+
+>>>>>>> 9ffdaa7bfe4622bf9593654859100ff178181186
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;

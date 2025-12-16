@@ -1,4 +1,4 @@
-// src/App.jsx
+
 import { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useSetAtom } from "jotai";
@@ -13,6 +13,8 @@ import Professionals from "./pages/Professionals";
 import AppPreloader from "./components/AppPreloader";
 import { userAtom } from "./atoms";
 import Profile from "./pages/Profile";
+import BecomeExpert from "./pages/BecomeExpert";
+
 
 
 const BACKEND_URL =
@@ -64,6 +66,7 @@ function App() {
         <Route path="/professionals/:category" element={<Professionals />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/bookings" element={<div className="p-6">Bookings page coming soon</div>} />
+        <Route path="/become-expert" element={<BecomeExpert />} />
       </Routes>
     </>
   );

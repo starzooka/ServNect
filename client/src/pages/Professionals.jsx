@@ -1,48 +1,81 @@
-// src/pages/Professionals.jsx
-import { useParams, Link } from "react-router-dom"
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { useParams, Link } from "react-router-dom";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-// Dummy data – in real case, this could come from an API or database
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
+
+// Dummy data (now includes id)
 const professionalsData = {
   electrician: [
-    { name: "Rahul Sharma", experience: "5 years", location: "Kolkata", contact: "9876543210" },
-    { name: "Anita Verma", experience: "3 years", location: "Delhi", contact: "9123456789" },
+    {
+      id: "64e1a1a1a1a1a1a1a1a1a101",
+      name: "Rahul Sharma",
+      experience: "5 years",
+      location: "Kolkata",
+      contact: "9876543210",
+    },
+    {
+      id: "64e1a1a1a1a1a1a1a1a1a102",
+      name: "Anita Verma",
+      experience: "3 years",
+      location: "Delhi",
+      contact: "9123456789",
+    },
   ],
   plumber: [
-    { name: "Ramesh Kumar", experience: "7 years", location: "Mumbai", contact: "9988776655" },
+    {
+      id: "64e1a1a1a1a1a1a1a1a1a103",
+      name: "Ramesh Kumar",
+      experience: "7 years",
+      location: "Mumbai",
+      contact: "9988776655",
+    },
   ],
-  carpenter: [
-    { name: "Suresh Gupta", experience: "4 years", location: "Bangalore", contact: "8877665544" },
-  ],
-  painter: [
-    { name: "Vikram Singh", experience: "6 years", location: "Hyderabad", contact: "7766554433" },
-  ],
-  "it-support": [
-    { name: "Priya Iyer", experience: "2 years", location: "Chennai", contact: "6655443322" },
-  ],
-  housekeeping: [
-    { name: "Manoj Das", experience: "8 years", location: "Pune", contact: "5544332211" },
-  ],
-}
+};
 
-// Helper to make category label pretty
-const formatCategory = (key) => {
-  return key
-    .split("-") // split on hyphen
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)) // capitalize each
-    .join(" ") // rejoin with spaces
-}
+// Helper to format category
+const formatCategory = (key) =>
+  key
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 
 export default function Professionals() {
-  const { category } = useParams()
-  const professionals = professionalsData[category] || []
-  const categoryLabel = formatCategory(category)
+  const { category } = useParams();
+  const professionals = professionalsData[category] || [];
+  const categoryLabel = formatCategory(category);
+
+  // ✅ MUST be inside component
+  const handleHire = async (expertId) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/bookings`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expertId,
+          category,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "Booking failed");
+        return;
+      }
+
+      alert("Booking request sent successfully ✅");
+    } catch (err) {
+      console.error(err);
+      alert("Server error");
+    }
+  };
 
   return (
     <section className="px-6 py-16 bg-muted/30 min-h-screen">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-primary">
             {categoryLabel}
@@ -54,24 +87,40 @@ export default function Professionals() {
 
         {professionals.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2">
-            {professionals.map((pro, index) => (
-              <Card key={index} className="hover:shadow-lg transition">
+            {professionals.map((pro) => (
+              <Card key={pro.id} className="hover:shadow-lg transition">
                 <CardHeader>
                   <CardTitle>{pro.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-muted-foreground">
-                  <p><strong>Experience:</strong> {pro.experience}</p>
-                  <p><strong>Location:</strong> {pro.location}</p>
-                  <p><strong>Contact:</strong> {pro.contact}</p>
-                  <Button size="sm" className="mt-2 w-full">Hire Now</Button>
+                  <p>
+                    <strong>Experience:</strong> {pro.experience}
+                  </p>
+                  <p>
+                    <strong>Location:</strong> {pro.location}
+                  </p>
+                  <p>
+                    <strong>Contact:</strong> {pro.contact}
+                  </p>
+
+                  {/* ✅ WORKING BUTTON */}
+                  <Button
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => handleHire(pro.id)}
+                  >
+                    Hire Now
+                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground">No professionals available in this category yet.</p>
+          <p className="text-muted-foreground">
+            No professionals available in this category yet.
+          </p>
         )}
       </div>
     </section>
-  )
+  );
 }
