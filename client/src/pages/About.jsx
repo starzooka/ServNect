@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import tishaImg from "@/assets/team/Tisha3.jpg";
+import tishaImg from "@/assets/team/Tisha.jpg";
 import shubhradeepImg from "@/assets/team/Shubhradeep.jpg";
 import rittwikImg from "@/assets/team/Rittwik.jpg";
 import anikImg from "@/assets/team/Anik.jpg";
