@@ -12,7 +12,6 @@ import { Menu, X } from "lucide-react";
 import { useAtom, useAtomValue } from "jotai";
 import { userAtom, authLoadingAtom } from "../atoms";
 
-// ✅ Same env pattern as SignIn / SignUp / AuthWrapper
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const navigationLinks = [
@@ -30,16 +29,14 @@ export default function Navbar() {
   const [user, setUser] = useAtom(userAtom);
   const authLoading = useAtomValue(authLoadingAtom);
 
-  // ✅ REST-based logout instead of GraphQL mutation
   const handleLogout = async () => {
     try {
       await fetch(`${BACKEND_URL}/auth/logout`, {
         method: "POST",
-        credentials: "include", // important so cookie is sent
+        credentials: "include",
       });
     } catch (err) {
       console.error("Logout request failed:", err);
-      // even if request fails, we'll still clear local state below
     } finally {
       setUser(null);
       navigate("/signin");
@@ -95,34 +92,32 @@ export default function Navbar() {
         {/* Desktop auth buttons */}
         <div className="hidden md:flex items-center gap-2 justify-self-end">
           <ThemeToggleButton />
-            {authLoading ? (
-              <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
-            ) : user ? (
-              <>
-                <span className="text-sm font-medium text-muted-foreground">
-                  Welcome, {user.firstName}!
-                </span>
+          {authLoading ? (
+            <div className="h-9 w-36 rounded-md bg-muted animate-pulse" />
+          ) : user ? (
+            <>
+              <span className="text-sm font-medium text-muted-foreground">
+                Welcome, {user.firstName}!
+              </span>
 
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/profile">Profile</Link>
-                </Button>
-                
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  Logout
-                </Button>
-              </>
-            ) : (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/profile">Profile</Link>
+              </Button>
 
-  <>
-    <Button asChild variant="ghost" size="sm">
-      <Link to="/signin">Sign In</Link>
-    </Button>
-    <Button asChild size="sm">
-      <Link to="/signup">Get Started</Link>
-    </Button>
-  </>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/signin">Sign In</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/signup">Get Started</Link>
+              </Button>
+            </>
           )}
-
         </div>
 
         {/* Mobile hamburger */}
@@ -165,14 +160,17 @@ export default function Navbar() {
           </Link>
         ))}
 
+        {/* ✅ CHANGED: Profile button instead of Become Expert */}
         {user && (
           <Button asChild variant="outline" size="sm">
-            <Link to="/become-expert">Become an Expert</Link>
+            <Link
+              to="/profile"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Profile
+            </Link>
           </Button>
         )}
-
-
-
 
         <div className="border-t pt-4 mt-2 flex flex-col gap-2 px-2">
           {authLoading ? (

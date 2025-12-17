@@ -31,9 +31,10 @@ export default function SignIn() {
     setErrorMessage("");
 
     try {
-      const res = await fetch(`${BACKEND_URL}/auth/login`, {
+      // 1. LOGIN REQUEST (Corrected URL)
+      const res = await fetch(`${BACKEND_URL}/auth/user/login`, {
         method: "POST",
-        credentials: "include",
+        credentials: "include", // Essential for setting the cookie
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
@@ -42,32 +43,30 @@ export default function SignIn() {
       try {
         data = await res.json();
       } catch {
-        // ignore JSON parse error, will handle below
+        // ignore
       }
 
       if (!res.ok) {
-        // our backend sends { message: "Invalid email or password" } or similar
         setErrorMessage(
           data?.message || data?.error || "Login failed. Please try again."
         );
         return;
       }
 
-      // expected { token, user: {...} }
-      if (!data?.user) {
-        setErrorMessage("Unexpected server response. Please try again.");
-        return;
+      // 2. FETCH USER PROFILE (Because login only returns a cookie)
+      // We must manually fetch the user details to update the UI
+      const userRes = await fetch(`${BACKEND_URL}/users/me`, {
+        credentials: "include",
+      });
+
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        setUser(userData); // Update Global State
+        navigate("/");     // Redirect to Home
+      } else {
+        setErrorMessage("Login successful, but failed to load user data.");
       }
 
-      // store user in global state (Jotai)
-      setUser(data.user);
-
-      // optional: also store in localStorage for persistence
-      try {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      } catch {}
-
-      navigate("/"); // go to home/dashboard
     } catch (err) {
       console.error("Login request error:", err);
       setErrorMessage("Server error. Try again.");

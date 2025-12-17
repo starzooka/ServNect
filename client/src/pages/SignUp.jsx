@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 
+// Fallback to localhost if env var is missing
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
 
@@ -45,7 +46,8 @@ export default function SignUp() {
     }
 
     try {
-      const res = await fetch(`${BACKEND_URL}/auth/register`, {
+      // ✅ FIX: Changed URL from /auth/register to /auth/user/register
+      const res = await fetch(`${BACKEND_URL}/auth/user/register`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -57,7 +59,12 @@ export default function SignUp() {
         }),
       });
 
-      const data = await res.json().catch(() => null);
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Ignore JSON errors if response is not JSON
+      }
 
       if (!res.ok) {
         setErrorMessage(
@@ -66,6 +73,7 @@ export default function SignUp() {
         return;
       }
 
+      // Success -> Redirect to Login
       navigate("/signin");
     } catch (err) {
       console.error("Sign up error:", err);
@@ -90,6 +98,7 @@ export default function SignUp() {
                 id="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
+                required
               />
             </div>
 
@@ -99,6 +108,7 @@ export default function SignUp() {
                 id="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
+                required
               />
             </div>
 
@@ -109,6 +119,7 @@ export default function SignUp() {
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
+                required
               />
             </div>
 
@@ -121,6 +132,7 @@ export default function SignUp() {
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={handleChange}
+                  required
                 />
                 <Button
                   type="button"
@@ -143,6 +155,7 @@ export default function SignUp() {
                   type={showConfirmPassword ? "text" : "password"}
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  required
                 />
                 <Button
                   type="button"

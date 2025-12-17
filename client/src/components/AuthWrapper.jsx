@@ -21,7 +21,7 @@ export default function AuthWrapper({ children }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/users/me/current`, {
+        const res = await fetch(`${BACKEND_URL}/users/me`, {
           method: "GET",
           credentials: "include",
         });

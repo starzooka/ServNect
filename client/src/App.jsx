@@ -29,7 +29,7 @@ function App() {
 
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/auth/me`, {
+        const res = await fetch(`${BACKEND_URL}/users/me`, {
           credentials: "include",
         });
 
