@@ -1,33 +1,19 @@
-import { MongoClient } from 'mongodb';
-import 'dotenv/config';
+// db.js
+import { MongoClient } from "mongodb";
+import "dotenv/config";
 
-// Get the connection string from .env
 const MONGO_URI = process.env.MONGO_URI;
+const DB_NAME = "ServNect";
 
 if (!MONGO_URI) {
-  throw new Error('🔥 Please define the MONGO_URI environment variable inside .env');
+  throw new Error("❌ MONGO_URI missing in .env");
 }
 
-// Use a single MongoClient instance globally
-let client;
-let db;
+const client = new MongoClient(MONGO_URI);
+await client.connect();
 
-try {
-  // Reuse the same connection if available (important for hot reloads and Render restarts)
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(MONGO_URI);
-    global._mongoClientPromise = client.connect();
-  } else {
-    client = await global._mongoClientPromise;
-  }
+console.log("✅ MongoDB connected");
 
-  // Get the default database from the connection string
-  db = client.db();
-
-  console.log('✅ MongoDB connected successfully');
-} catch (error) {
-  console.error('❌ MongoDB connection failed:', error.message);
-  process.exit(1); // Stop server if DB connection fails
-}
+const db = client.db(DB_NAME);
 
 export { db };

@@ -1,49 +1,43 @@
-// src/App.jsx
-import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
-import SidebarLayout from "./components/SidebarLayout.jsx";
-import DashboardHome from "./pages/DashboardHome.jsx";
-import BookingsPage from "./pages/BookingsPage.jsx";
-import MessagesPage from "./pages/MessagesPage.jsx";
-import AccountPage from "./pages/AccountPage.jsx";
+import SidebarLayout from "./components/SidebarLayout";
+import ExpertAuthWrapper from "./components/AuthWrapper";
 
-import AppPreloader from "./components/AppPreloader";
-import ProtectedRoute from "./components/ProtectedRoute";
+import DashboardHome from "./pages/DashboardHome";
+import BookingsPage from "./pages/BookingsPage";
+import MessagesPage from "./pages/MessagesPage";
+import AccountPage from "./pages/AccountPage";
 
-import SignUp from "./pages/SignUp-Expert.jsx";
-import SignIn from "./pages/SignIn-Expert.jsx";
+import SignIn from "./pages/SignIn-Expert";
+import SignUp from "./pages/SignUp-Expert";
 
-function App() {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Global preloader (app boot)
-  if (loading) {
-    return <AppPreloader loading />;
-  }
-
+export default function App() {
   return (
     <Routes>
-      {/* ✅ Public routes */}
+      {/* 🔁 ROOT REDIRECT */}
+      <Route path="/" element={<Navigate to="/signin" replace />} />
+
+      {/* ✅ PUBLIC ROUTES */}
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
 
-      {/* 🔒 Protected routes */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<SidebarLayout />}>
-          <Route index element={<DashboardHome />} />
-          <Route path="bookings" element={<BookingsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
-          <Route path="account" element={<AccountPage />} />
-        </Route>
+      {/* 🔒 PROTECTED EXPERT ROUTES */}
+      <Route
+        path="/expert"
+        element={
+          <ExpertAuthWrapper>
+            <SidebarLayout />
+          </ExpertAuthWrapper>
+        }
+      >
+        <Route index element={<DashboardHome />} />
+        <Route path="bookings" element={<BookingsPage />} />
+        <Route path="messages" element={<MessagesPage />} />
+        <Route path="account" element={<AccountPage />} />
       </Route>
+
+      {/* ❌ CATCH-ALL */}
+      <Route path="*" element={<Navigate to="/signin" replace />} />
     </Routes>
   );
 }
-
-export default App;

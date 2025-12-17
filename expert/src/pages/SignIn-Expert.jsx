@@ -8,13 +8,20 @@ import { useSetAtom } from "jotai";
 import { userAtom } from "../atoms";
 import { Eye, EyeOff } from "lucide-react";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+/* ✅ SAFE BACKEND URL */
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
 
-export default function SignIn() {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+export default function SignInExpert() {
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const setUser = useSetAtom(userAtom);
   const navigate = useNavigate();
 
@@ -30,23 +37,34 @@ export default function SignIn() {
     setErrorMessage("");
 
     try {
-      const res = await fetch(`${BACKEND_URL}/auth/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      /* ✅ CORRECT ENDPOINT */
+      const res = await fetch(
+        `${BACKEND_URL}/auth/expert/login`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
 
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(data.error || "Login failed");
+        setErrorMessage(data.message || "Login failed");
         return;
       }
 
-      setUser(data.user);
-      navigate("/");
-    } catch {
+      /* ✅ STORE EXPERT */
+      setUser({
+        ...data.expert,
+        type: "expert",
+      });
+
+      /* ✅ REDIRECT TO EXPERT DASHBOARD */
+      navigate("/expert");
+    } catch (err) {
+      console.error(err);
       setErrorMessage("Server error. Try again.");
     } finally {
       setLoading(false);
@@ -58,7 +76,7 @@ export default function SignIn() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-1">
           <CardTitle className="text-2xl">
-            Let’s get you back to work
+            Welcome back 👋
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Sign in to manage your services and bookings
@@ -76,6 +94,7 @@ export default function SignIn() {
                 placeholder="you@example.com"
                 value={formData.email}
                 onChange={handleChange}
+                required
               />
             </div>
 
@@ -89,6 +108,7 @@ export default function SignIn() {
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
+                  required
                 />
                 <Button
                   type="button"
@@ -112,7 +132,10 @@ export default function SignIn() {
           </form>
 
           <p className="text-center mt-4 text-sm">
-            Not registered yet? <Link to="/signup">Sign up</Link>
+            Not registered yet?{" "}
+            <Link to="/signup" className="underline">
+              Sign up
+            </Link>
           </p>
         </CardContent>
       </Card>

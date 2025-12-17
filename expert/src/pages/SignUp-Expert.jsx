@@ -30,6 +30,8 @@ const SERVICES = [
 ];
 
 export default function ExpertSignUp() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -47,28 +49,24 @@ export default function ExpertSignUp() {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate();
-
   function handleChange(e) {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
     setErrorMessage("");
   }
 
-  // 🔍 Calculate Age from DD/MM/YYYY
+  // 🔢 Age calculation
   function calculateAge(dobString) {
     const [day, month, year] = dobString.split("/").map(Number);
     const dob = new Date(year, month - 1, day);
     const today = new Date();
 
     let age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
-    const dayDiff = today.getDate() - dob.getDate();
+    const m = today.getMonth() - dob.getMonth();
 
-    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
       age--;
     }
-
     return age;
   }
 
@@ -77,14 +75,14 @@ export default function ExpertSignUp() {
     setLoading(true);
     setErrorMessage("");
 
-    // Password match check
+    // Password match
     if (formData.password !== formData.confirmPassword) {
       setErrorMessage("Passwords do not match");
       setLoading(false);
       return;
     }
 
-    // DOB format check
+    // DOB format
     const dobRegex =
       /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
 
@@ -94,33 +92,38 @@ export default function ExpertSignUp() {
       return;
     }
 
-    // 🔞 Age validation (must be 18 or older)
-    const age = calculateAge(formData.dob);
-    if (age < 18) {
+    // Age check
+    if (calculateAge(formData.dob) < 18) {
       setErrorMessage("You must be at least 18 years old to register.");
       setLoading(false);
       return;
     }
 
-    // Submit to backend
-    try {
-      const res = await fetch(`${BACKEND_URL}/auth/expert/register`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+    // ❗ Remove confirmPassword before sending
+    const { confirmPassword, ...payload } = formData;
 
-      const data = await res.json().catch(() => null);
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/auth/experts/register`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(data?.message || "Sign up failed. Try again.");
+        setErrorMessage(data.message || "Registration failed");
         return;
       }
 
+      // ✅ Success
       navigate("/signin");
-    } catch {
-      setErrorMessage("Server error. Try again.");
+    } catch (err) {
+      setErrorMessage("Server error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -134,7 +137,7 @@ export default function ExpertSignUp() {
             Join as a Service Professional
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Create your profile and start connecting with customers
+            Create your expert profile and start getting customers
           </p>
         </CardHeader>
 
@@ -189,13 +192,13 @@ export default function ExpertSignUp() {
               />
             </div>
 
-            {/* Service Dropdown */}
+            {/* Service */}
             <div className="space-y-1.5">
               <Label>Service Provided</Label>
               <Select
                 value={formData.service}
                 onValueChange={(val) =>
-                  setFormData((prev) => ({ ...prev, service: val }))
+                  setFormData((p) => ({ ...p, service: val }))
                 }
               >
                 <SelectTrigger className="w-full">
@@ -211,55 +214,43 @@ export default function ExpertSignUp() {
               </Select>
             </div>
 
-            {/* Date of Birth (DD/MM/YYYY + calendar picker) */}
+            {/* DOB */}
             <div className="space-y-1.5">
               <Label>Date of Birth</Label>
-
               <div className="relative">
-                {/* User-typed visible input */}
                 <Input
                   type="text"
                   placeholder="DD/MM/YYYY"
                   value={formData.dob}
                   onChange={(e) => {
-                    let val = e.target.value.replace(/\D/g, "");
-
-                    if (val.length > 8) val = val.slice(0, 8);
-                    if (val.length >= 5) {
-                      val = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(
-                        4
-                      )}`;
-                    } else if (val.length >= 3) {
-                      val = `${val.slice(0, 2)}/${val.slice(2)}`;
-                    }
-
-                    setFormData((prev) => ({ ...prev, dob: val }));
+                    let v = e.target.value.replace(/\D/g, "");
+                    if (v.length > 8) v = v.slice(0, 8);
+                    if (v.length >= 5)
+                      v = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+                    else if (v.length >= 3)
+                      v = `${v.slice(0, 2)}/${v.slice(2)}`;
+                    setFormData((p) => ({ ...p, dob: v }));
                   }}
                   className="pr-10"
                 />
-
-                {/* Calendar icon */}
                 <button
                   type="button"
                   onClick={() =>
                     document.getElementById("dob-hidden").showPicker()
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label="Open calendar"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 >
                   <Calendar className="h-4 w-4" />
                 </button>
-
-                {/* Hidden input to trigger native calendar */}
                 <input
                   id="dob-hidden"
                   type="date"
                   className="absolute inset-0 opacity-0"
                   onChange={(e) => {
-                    const [year, month, day] = e.target.value.split("-");
-                    setFormData((prev) => ({
-                      ...prev,
-                      dob: `${day}/${month}/${year}`,
+                    const [y, m, d] = e.target.value.split("-");
+                    setFormData((p) => ({
+                      ...p,
+                      dob: `${d}/${m}/${y}`,
                     }));
                   }}
                 />
@@ -316,7 +307,9 @@ export default function ExpertSignUp() {
                   variant="ghost"
                   size="icon"
                   className="absolute right-1 top-1"
-                  onClick={() => setShowConfirmPassword((p) => !p)}
+                  onClick={() =>
+                    setShowConfirmPassword((p) => !p)
+                  }
                 >
                   {showConfirmPassword ? <EyeOff /> : <Eye />}
                 </Button>
@@ -329,7 +322,6 @@ export default function ExpertSignUp() {
               </p>
             )}
 
-            {/* Submit button */}
             <div className="sm:col-span-2">
               <Button type="submit" disabled={loading} className="w-full">
                 {loading ? "Creating Account..." : "Register as Expert"}

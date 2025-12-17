@@ -1,11 +1,10 @@
-// authMiddleware.js
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
-import { db } from "./db.js";
+import { expertsDb } from "./db/expertsDb.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-async function authMiddleware(req, res, next) {
+export default async function authMiddleware(req, res, next) {
   try {
     const token =
       req.cookies?.token ||
@@ -13,34 +12,33 @@ async function authMiddleware(req, res, next) {
         ? req.headers.authorization.split(" ")[1]
         : null);
 
-    // ✅ No token → treat as logged out, but allow request
     if (!token) {
       req.user = null;
       return next();
     }
 
-    // ✅ Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const user = await db
-      .collection("users")
-      .findOne({ _id: new ObjectId(decoded.userId) });
+    if (decoded.type === "expert") {
+      const expert = await expertsDb
+        .collection("experts")
+        .findOne({ _id: new ObjectId(decoded.id) });
 
-    if (!user) {
-      req.user = null;
-      return next();
+      if (!expert) {
+        req.user = null;
+        return next();
+      }
+
+      req.user = {
+        id: expert._id.toString(),
+        email: expert.email,
+        type: "expert",
+      };
     }
 
-    const { password, ...userdata } = user;
-    req.user = { id: user._id.toString(), ...userdata };
-
     next();
-  } catch (err) {
-    console.log("AUTH ERROR:", err.message);
-    // ✅ Invalid/expired token → just clear user, don’t 401
+  } catch {
     req.user = null;
-    return next();
+    next();
   }
 }
-
-export default authMiddleware;

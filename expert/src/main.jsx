@@ -5,16 +5,13 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import "./index.css";
 import { ThemeProvider } from "./components/ThemeProvider.jsx";
-import AuthWrapper from "./components/AuthWrapper.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthWrapper>
-        <ThemeProvider defaultTheme="dark" storageKey="my-app-theme">
-          <App />
-        </ThemeProvider>
-      </AuthWrapper>
+      <ThemeProvider defaultTheme="dark" storageKey="my-app-theme">
+        <App />
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>
 );
