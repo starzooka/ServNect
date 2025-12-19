@@ -1,11 +1,15 @@
 import express from "express";
 import { usersDb } from "../../db/usersDb.js";
 import { ObjectId } from "mongodb";
+// ✅ 1. IMPORT THE MIDDLEWARE
+import authMiddleware from "../../authMiddleware.js"; 
 
 const router = express.Router();
 
-// Route: GET /users/me
-router.get("/me", async (req, res) => {
+// ✅ 2. INJECT MIDDLEWARE HERE
+// Without this, req.user is undefined, causing the 401 error
+router.get("/me", authMiddleware, async (req, res) => {
+  
   if (!req.user || req.user.type !== "user") {
     return res.status(401).json({ message: "Not authenticated" });
   }

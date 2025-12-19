@@ -16,6 +16,7 @@ export default function SignIn() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
   const setUser = useSetAtom(userAtom);
   const navigate = useNavigate();
 
@@ -31,20 +32,15 @@ export default function SignIn() {
     setErrorMessage("");
 
     try {
-      // 1. LOGIN REQUEST (Corrected URL)
+      // 1. LOGIN REQUEST
       const res = await fetch(`${BACKEND_URL}/auth/user/login`, {
         method: "POST",
-        credentials: "include", // Essential for setting the cookie
+        // credentials: "include", // ❌ REMOVED: No longer using cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        // ignore
-      }
+      const data = await res.json();
 
       if (!res.ok) {
         setErrorMessage(
@@ -53,19 +49,20 @@ export default function SignIn() {
         return;
       }
 
-      // 2. FETCH USER PROFILE (Because login only returns a cookie)
-      // We must manually fetch the user details to update the UI
-      const userRes = await fetch(`${BACKEND_URL}/users/me`, {
-        credentials: "include",
-      });
-
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        setUser(userData); // Update Global State
-        navigate("/");     // Redirect to Home
-      } else {
-        setErrorMessage("Login successful, but failed to load user data.");
+      // ✅ 2. SAVE TOKEN TO LOCAL STORAGE
+      // We use 'user_token' to distinguish from 'expert_token'
+      if (data.token) {
+        localStorage.setItem("user_token", data.token);
       }
+
+      // ✅ 3. UPDATE GLOBAL STATE
+      // We assume backend returns { token, user: {...} } similar to expert
+      if (data.user) {
+        setUser(data.user);
+      }
+
+      // ✅ 4. REDIRECT
+      navigate("/");
 
     } catch (err) {
       console.error("Login request error:", err);

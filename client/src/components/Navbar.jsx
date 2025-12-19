@@ -30,15 +30,21 @@ export default function Navbar() {
   const authLoading = useAtomValue(authLoadingAtom);
 
   const handleLogout = async () => {
+    // 1. Clear Local Storage
+    localStorage.removeItem("user_token");
+
+    // 2. Clear Global State
+    setUser(null);
+
+    // 3. Optional: Notify Backend (Stateless, but good practice)
     try {
       await fetch(`${BACKEND_URL}/auth/logout`, {
         method: "POST",
-        credentials: "include",
+        // credentials: "include", // ❌ REMOVED
       });
     } catch (err) {
       console.error("Logout request failed:", err);
     } finally {
-      setUser(null);
       navigate("/signin");
     }
   };
@@ -160,7 +166,7 @@ export default function Navbar() {
           </Link>
         ))}
 
-        {/* ✅ CHANGED: Profile button instead of Become Expert */}
+        {/* CHANGED: Profile button instead of Become Expert */}
         {user && (
           <Button asChild variant="outline" size="sm">
             <Link

@@ -1,10 +1,23 @@
-import { atom } from 'jotai';
+// atoms.js
+import { atom } from "jotai";
 
-// This atom will hold the user object if logged in, or null if not.
-export const userAtom = atom(null);
+// ==========================
+// 👤 USER STATE (Customers)
+// ==========================
+export const userAtom = atom(null); 
 
-// This derived atom tells us if the user is authenticated.
+// Derived atom: true if user is logged in
 export const isAuthenticatedAtom = atom((get) => get(userAtom) !== null);
 
-// This atom tracks if we are done with the initial session check.
+
+// ==========================
+// 👷 EXPERT STATE (Professionals)
+// ==========================
+// We need a separate atom because Experts have different data fields
+export const expertAtom = atom(null); 
+
+
+// ==========================
+// ⚙️ UI STATE
+// ==========================
 export const authLoadingAtom = atom(true);

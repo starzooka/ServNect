@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
+import { useSetAtom } from "jotai"; // ✅ Import Jotai
+import { userAtom } from "../atoms"; // ✅ Import User Atom
 
 // Fallback to localhost if env var is missing
 const BACKEND_URL =
@@ -25,6 +27,7 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const setUser = useSetAtom(userAtom); // ✅ Get State Setter
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -46,10 +49,9 @@ export default function SignUp() {
     }
 
     try {
-      // ✅ FIX: Changed URL from /auth/register to /auth/user/register
       const res = await fetch(`${BACKEND_URL}/auth/user/register`, {
         method: "POST",
-        credentials: "include",
+        // credentials: "include", // ❌ REMOVED: No cookies used
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           firstName,
@@ -63,7 +65,7 @@ export default function SignUp() {
       try {
         data = await res.json();
       } catch {
-        // Ignore JSON errors if response is not JSON
+        // Ignore JSON errors
       }
 
       if (!res.ok) {
@@ -73,8 +75,20 @@ export default function SignUp() {
         return;
       }
 
-      // Success -> Redirect to Login
-      navigate("/signin");
+      // ✅ HANDLE AUTO-LOGIN (If backend sends token)
+      if (data?.token) {
+        localStorage.setItem("user_token", data.token);
+        
+        if (data.user) {
+          setUser(data.user);
+        }
+        
+        navigate("/"); // Go to Home
+      } else {
+        // Fallback: Go to Sign In
+        navigate("/signin");
+      }
+
     } catch (err) {
       console.error("Sign up error:", err);
       setErrorMessage("Server error. Try again.");
