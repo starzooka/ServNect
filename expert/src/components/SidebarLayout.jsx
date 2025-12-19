@@ -1,11 +1,15 @@
 import React, { useState } from "react"
 import { Link, NavLink, Outlet } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Icons } from "@/components/icons"
+import { useAtomValue } from "jotai" // ✅ Import Jotai
+import { expertAtom } from "../atoms.js" // ✅ Import Atom
 
 export default function SidebarLayout() {
   const [isOpen, setIsOpen] = useState(false)
+  const expert = useAtomValue(expertAtom) // ✅ Get dynamic data
+
   const navItems = [
     { to: "", label: "Dashboard", icon: Icons.grid },
     { to: "bookings", label: "Bookings", icon: Icons.calendar },
@@ -13,17 +17,32 @@ export default function SidebarLayout() {
     { to: "account", label: "Account", icon: Icons.user },
   ]
 
+  // Helper to get initials (e.g., "Alex Johnson" -> "AJ")
+  const getInitials = (first, last) => {
+    return `${first?.charAt(0) || ""}${last?.charAt(0) || ""}`.toUpperCase();
+  }
+
+  // Fallback if expert data is missing for some reason
+  if (!expert) return null; 
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar: full-bleed left, fixed width, won't shrink */}
       <aside className="bg-card border-r border-border w-72 p-4 hidden lg:flex flex-col flex-shrink-0 h-screen overflow-y-auto">
         <div className="flex items-center gap-3 mb-6">
           <Avatar className="w-12 h-12">
-            <AvatarFallback>AJ</AvatarFallback>
+            {/* ✅ Dynamic Image (if you have one) */}
+            <AvatarImage src={expert.profileImage} alt={expert.firstName} />
+            {/* ✅ Dynamic Initials */}
+            <AvatarFallback>{getInitials(expert.firstName, expert.lastName)}</AvatarFallback>
           </Avatar>
           <div>
-            <div className="font-semibold">Alex Johnson</div>
-            <div className="text-xs text-muted-foreground">Business Consultant</div>
+            {/* ✅ Dynamic Name */}
+            <div className="font-semibold">{expert.firstName} {expert.lastName}</div>
+            {/* ✅ Dynamic Specialty/Title */}
+            <div className="text-xs text-muted-foreground capitalize">
+              {expert.specialty || "Expert Consultant"}
+            </div>
           </div>
         </div>
 
@@ -70,9 +89,12 @@ export default function SidebarLayout() {
             <div className="text-lg font-bold">Expert Dashboard</div>
           </div>
           <div className="flex items-center gap-3">
-            <Button asChild size="sm">
-              <Link to="/explore">Explore</Link>
-            </Button>
+             {/* ✅ Added Avatar to Mobile Header too */}
+             <Avatar className="w-8 h-8">
+                <AvatarFallback className="text-xs">
+                  {getInitials(expert.firstName, expert.lastName)}
+                </AvatarFallback>
+             </Avatar>
           </div>
         </div>
 
@@ -94,7 +116,7 @@ export default function SidebarLayout() {
           </div>
         )}
 
-        {/* Main content is centered and constrained while the sidebar remains fixed */}
+        {/* Main content */}
         <main className="flex-1">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <Outlet />
