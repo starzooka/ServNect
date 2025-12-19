@@ -1,8 +1,11 @@
 // atoms.js
 import { atom } from "jotai";
 
-export const userAtom = atom(null); // Existing user atom
-export const authLoadingAtom = atom(true); // Existing loading atom
+// Atom for Regular Users (Customers)
+export const userAtom = atom(null); 
 
-// ✅ NEW: Atom for Expert Profile
+// Global Loading State (Optional, mostly used by User Navbar)
+export const authLoadingAtom = atom(true); 
+
+// ✅ Atom for Service Professionals (Experts)
 export const expertAtom = atom(null);

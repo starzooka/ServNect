@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useSetAtom } from "jotai";
-import { expertAtom } from "../atoms.js";
+import { expertAtom } from "../atoms";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
@@ -17,6 +17,7 @@ export default function ExpertAuthWrapper({ children }) {
       // ✅ 1. Get Token from LocalStorage
       const token = localStorage.getItem("expert_token");
 
+      // If no token, stop immediately and redirect
       if (!token) {
         setExpert(null);
         setIsAuthenticated(false);
@@ -26,7 +27,7 @@ export default function ExpertAuthWrapper({ children }) {
 
       try {
         const res = await fetch(`${BACKEND_URL}/experts/me`, {
-          // ✅ 2. Attach Token to Headers
+          // ✅ 2. Attach Token to Headers manually
           headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -35,15 +36,16 @@ export default function ExpertAuthWrapper({ children }) {
 
         if (res.ok) {
           const data = await res.json();
-          setExpert(data);
+          setExpert(data); // Update Global State
           setIsAuthenticated(true);
         } else {
-          // Token invalid/expired
+          // Token is invalid or expired -> Clear it
           localStorage.removeItem("expert_token");
           setExpert(null);
           setIsAuthenticated(false);
         }
-      } catch {
+      } catch (err) {
+        console.error("Auth check failed:", err);
         setExpert(null);
         setIsAuthenticated(false);
       } finally {
@@ -54,6 +56,7 @@ export default function ExpertAuthWrapper({ children }) {
     checkExpertAuth();
   }, [setExpert]);
 
+  // ⏳ Loader while checking token
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -62,11 +65,13 @@ export default function ExpertAuthWrapper({ children }) {
     );
   }
 
+  // 🔒 Redirect if not authenticated
   if (!isAuthenticated) {
     return (
       <Navigate to="/signin" replace state={{ from: location.pathname }} />
     );
   }
 
+  // ✅ Render the protected page
   return children;
 }

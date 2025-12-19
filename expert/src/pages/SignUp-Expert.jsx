@@ -12,6 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// ✅ IMPORT ATOMS TO UPDATE STATE
+import { useSetAtom } from "jotai";
+import { expertAtom } from "../atoms"; 
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
@@ -31,6 +34,8 @@ const SERVICES = [
 
 export default function ExpertSignUp() {
   const navigate = useNavigate();
+  // ✅ GET SETTER FOR GLOBAL STATE
+  const setExpert = useSetAtom(expertAtom);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -103,11 +108,12 @@ export default function ExpertSignUp() {
     const { confirmPassword, ...payload } = formData;
 
     try {
+      // ✅ CHANGED URL: /auth/expert/register (singular 'expert')
       const res = await fetch(
-        `${BACKEND_URL}/auth/experts/register`,
+        `${BACKEND_URL}/auth/expert/register`,
         {
           method: "POST",
-          credentials: "include",
+          // credentials: "include", // ❌ REMOVED: No longer using cookies
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         }
@@ -120,8 +126,21 @@ export default function ExpertSignUp() {
         return;
       }
 
-      // ✅ Success
-      navigate("/signin");
+      // ✅ NEW: Handle Token & Auto-Login
+      if (data.token) {
+        // 1. Save Token
+        localStorage.setItem("expert_token", data.token);
+        
+        // 2. Update Global State
+        setExpert(data.expert);
+        
+        // 3. Redirect to Dashboard
+        navigate("/expert");
+      } else {
+        // Fallback if no token sent
+        navigate("/signin");
+      }
+
     } catch (err) {
       setErrorMessage("Server error. Please try again.");
     } finally {

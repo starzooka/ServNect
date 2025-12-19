@@ -5,10 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useSetAtom } from "jotai";
-import { userAtom } from "../atoms";
+import { expertAtom } from "../atoms"; // ✅ Changed to expertAtom
 import { Eye, EyeOff } from "lucide-react";
 
-/* ✅ SAFE BACKEND URL */
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
 
@@ -22,7 +21,8 @@ export default function SignInExpert() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const setUser = useSetAtom(userAtom);
+  // ✅ Use the Expert Atom
+  const setExpert = useSetAtom(expertAtom);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -37,16 +37,12 @@ export default function SignInExpert() {
     setErrorMessage("");
 
     try {
-      /* ✅ CORRECT ENDPOINT */
-      const res = await fetch(
-        `${BACKEND_URL}/auth/expert/login`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        }
-      );
+      const res = await fetch(`${BACKEND_URL}/auth/expert/login`, {
+        method: "POST",
+        // credentials: "include", // ❌ REMOVED: No longer using cookies
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
       const data = await res.json();
 
@@ -55,14 +51,17 @@ export default function SignInExpert() {
         return;
       }
 
-      /* ✅ STORE EXPERT */
-      setUser({
-        ...data.expert,
-        type: "expert",
-      });
+      // ✅ 1. SAVE TOKEN TO LOCAL STORAGE
+      if (data.token) {
+        localStorage.setItem("expert_token", data.token);
+      }
 
-      /* ✅ REDIRECT TO EXPERT DASHBOARD */
+      // ✅ 2. UPDATE GLOBAL STATE
+      setExpert(data.expert);
+
+      // ✅ 3. REDIRECT TO DASHBOARD
       navigate("/expert");
+
     } catch (err) {
       console.error(err);
       setErrorMessage("Server error. Try again.");
