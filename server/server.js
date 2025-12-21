@@ -5,42 +5,40 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-import expertAuth from "./routes/experts/auth.js";
-import expertsRoutes from "./routes/experts/experts.js";
-import userAuth from "./routes/users/auth.js"; 
-import userRoutes from "./routes/users/users.js";
-
 import authMiddleware from "./authMiddleware.js";
 
-import adminRoutes from "./routes/admin.js";
+// expert routes
+import expertAuth from "./routes/experts/auth.js";
+import expertsRoutes from "./routes/experts/experts.js";
 
-
-
+// user routes
+import userAuth from "./routes/users/auth.js";
+import userRoutes from "./routes/users/users.js";
 
 const app = express();
 const PORT = process.env.PORT || 5050;
 
+// middleware
 app.use(
   cors({
     origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
   })
 );
-
 app.use(express.json());
 app.use(cookieParser());
+
+// 🔥 AUTH MIDDLEWARE MUST COME BEFORE PROTECTED ROUTES
 app.use(authMiddleware);
 
-// --- REGISTER ROUTES ---
+// expert routes
 app.use("/auth/expert", expertAuth);
 app.use("/experts", expertsRoutes);
 
-// 2. REGISTER USER ROUTES
-app.use("/auth/user", userAuth); // login/register
-app.use("/users", userRoutes);   // profile/me
+// user routes
+app.use("/auth/user", userAuth);
+app.use("/users", userRoutes);
 
-app.use("/admin", adminRoutes);
-
-app.listen(PORT, () =>
-  console.log(`Server running on http://localhost:${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

@@ -1,37 +1,43 @@
+
 import express from "express";
-import { usersDb } from "../../db/usersDb.js";
+import { db } from "../../db.js";
 import { ObjectId } from "mongodb";
-// ✅ 1. IMPORT THE MIDDLEWARE
-import authMiddleware from "../../authMiddleware.js"; 
 
 const router = express.Router();
 
-// ✅ 2. INJECT MIDDLEWARE HERE
-// Without this, req.user is undefined, causing the 401 error
-router.get("/me", authMiddleware, async (req, res) => {
-  
-  if (!req.user || req.user.type !== "user") {
+/**
+ * UPDATE PROFILE
+ * PUT /users/me
+ */
+router.put("/me", async (req, res) => {
+  if (!req.user) {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
+  const { firstName, lastName, phone, bio } = req.body;
+
   try {
-    const user = await usersDb
+    await db.collection("users").updateOne(
+      { _id: new ObjectId(req.user.id) },
+      {
+        $set: {
+          firstName,
+          lastName,
+          phone,
+          bio,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    const updatedUser = await db
       .collection("users")
-      .findOne(
-        { _id: new ObjectId(req.user.id) },
-        { projection: { password: 0 } }
-      );
+      .findOne({ _id: new ObjectId(req.user.id) });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({
-      id: user._id.toString(),
-      ...user,
-    });
+    const { password, ...safeUser } = updatedUser;
+    res.json(safeUser);
   } catch (err) {
-    console.error("GET /users/me error:", err);
+    console.error("Profile update error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

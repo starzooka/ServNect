@@ -12,11 +12,7 @@ import Professionals from "./pages/Professionals";
 import AppPreloader from "./components/AppPreloader";
 import { userAtom } from "./atoms";
 import Profile from "./pages/Profile";
-import BecomeExpert from "./pages/BecomeExpert";
 
-import Admin from "./pages/Admin";
-import { useAtomValue } from "jotai";
-import { userAtom } from "./atoms";
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
@@ -27,7 +23,6 @@ function App() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // ✅ 1. Get Token from Local Storage
       const token = localStorage.getItem("user_token");
 
       // If no token, stop immediately (User is guest)
@@ -40,14 +35,14 @@ function App() {
       try {
         console.log("🔍 Checking auth with token...");
         
-        const res = await fetch(`${BACKEND_URL}/users/me`, {
-          method: "GET",
-          // ✅ 2. Attach Token to Header (No Cookies)
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(`${BACKEND_URL}/auth/me`, {
           headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
         });
+
 
         if (!res.ok) {
           // Token is invalid/expired -> Clear it to prevent loops
@@ -87,8 +82,6 @@ function App() {
         <Route path="/professionals/:category" element={<Professionals />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/bookings" element={<div className="p-6">Bookings page coming soon</div>}/>
-        <Route path="/admin" element={user?.role === "admin" ? <Admin /> : <Navigate to="/" />}/>
-        <Route path="/become-expert" element={<BecomeExpert />} />
       </Routes>
     </>
   );

@@ -16,7 +16,7 @@ export default function SignIn() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   const setUser = useSetAtom(userAtom);
   const navigate = useNavigate();
 
@@ -32,10 +32,8 @@ export default function SignIn() {
     setErrorMessage("");
 
     try {
-      // 1. LOGIN REQUEST
       const res = await fetch(`${BACKEND_URL}/auth/user/login`, {
         method: "POST",
-        // credentials: "include", // ❌ REMOVED: No longer using cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
@@ -43,29 +41,18 @@ export default function SignIn() {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(
-          data?.message || data?.error || "Login failed. Please try again."
-        );
+        setErrorMessage(data?.message || "Login failed");
         return;
       }
 
-      // ✅ 2. SAVE TOKEN TO LOCAL STORAGE
-      // We use 'user_token' to distinguish from 'expert_token'
-      if (data.token) {
-        localStorage.setItem("user_token", data.token);
-      }
+      // ✅ STORE TOKEN + USER TOGETHER (THIS FIXES EVERYTHING)
+      setUser({
+        token: data.token,
+        ...data.user,
+      });
 
-      // ✅ 3. UPDATE GLOBAL STATE
-      // We assume backend returns { token, user: {...} } similar to expert
-      if (data.user) {
-        setUser(data.user);
-      }
-
-      // ✅ 4. REDIRECT
       navigate("/");
-
     } catch (err) {
-      console.error("Login request error:", err);
       setErrorMessage("Server error. Try again.");
     } finally {
       setLoading(false);
