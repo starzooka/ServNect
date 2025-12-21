@@ -14,6 +14,10 @@ import { userAtom } from "./atoms";
 import Profile from "./pages/Profile";
 import BecomeExpert from "./pages/BecomeExpert";
 
+import Admin from "./pages/Admin";
+import { useAtomValue } from "jotai";
+import { userAtom } from "./atoms";
+
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
 
@@ -82,10 +86,8 @@ function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/professionals/:category" element={<Professionals />} />
         <Route path="/profile" element={<Profile />} />
-        <Route
-          path="/bookings"
-          element={<div className="p-6">Bookings page coming soon</div>}
-        />
+        <Route path="/bookings" element={<div className="p-6">Bookings page coming soon</div>}/>
+        <Route path="/admin" element={user?.role === "admin" ? <Admin /> : <Navigate to="/" />}/>
         <Route path="/become-expert" element={<BecomeExpert />} />
       </Routes>
     </>

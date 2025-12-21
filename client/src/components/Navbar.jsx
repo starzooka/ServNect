@@ -213,6 +213,11 @@ export default function Navbar() {
                   Get Started
                 </Link>
               </Button>
+              {user?.role === "admin" && (
+                <Button asChild variant="outline">
+                  <Link to="/admin">Admin</Link>
+                </Button>
+              )}
             </>
           )}
         </div>
