@@ -41,7 +41,7 @@ export default function SidebarLayout() {
             <div className="font-semibold">{expert.firstName} {expert.lastName}</div>
             {/* ✅ Dynamic Specialty/Title */}
             <div className="text-xs text-muted-foreground capitalize">
-              {expert.specialty || "Expert Consultant"}
+              {expert.service || "Expert Consultant"}
             </div>
           </div>
         </div>
