@@ -159,3 +159,102 @@ body {
   font-size: 36px;
   font-weight: 700;
 }
+
+/* ===== Layout ===== */
+.admin-layout {
+  display: flex;
+  min-height: 100%;
+}
+
+/* ===== Sidebar ===== */
+.admin-sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: rgba(15, 15, 15, 0.95);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-logo {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+
+/* Vertical nav */
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-nav button {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.admin-nav button:hover,
+.admin-nav button.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Push logout to bottom */
+.admin-nav .logout {
+  margin-top: auto;
+}
+
+/* ===== Users Table ===== */
+.admin-table {
+  width: 100%;
+  max-width: 1000px;
+  border-collapse: collapse;
+  margin-top: 30px;
+  background: rgba(20, 20, 20, 0.75);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.admin-table thead {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 16px 20px;
+  font-size: 15px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.admin-table th {
+  color: #bdbdbd;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.admin-table td {
+  color: #ffffff;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Prevent email overflow */
+.admin-table td.email {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover effect */
+.admin-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
