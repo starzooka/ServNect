@@ -13,57 +13,21 @@ import AppPreloader from "./components/AppPreloader";
 import { userAtom } from "./atoms";
 import Profile from "./pages/Profile";
 
-
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:5050";
-
 function App() {
   const [loading, setLoading] = useState(true);
   const setUser = useSetAtom(userAtom);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem("user_token");
+    // 🔁 Restore login from localStorage
+    const storedUser = localStorage.getItem("servnect_user");
 
-      // If no token, stop immediately (User is guest)
-      if (!token) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    } else {
+      setUser(null);
+    }
 
-      try {
-        console.log("🔍 Checking auth with token...");
-        
-        const token = localStorage.getItem("token");
-
-        const res = await fetch(`${BACKEND_URL}/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-
-        if (!res.ok) {
-          // Token is invalid/expired -> Clear it to prevent loops
-          console.warn("Token invalid, logging out.");
-          localStorage.removeItem("user_token");
-          setUser(null);
-        } else {
-          // Success -> Restore user session
-          const me = await res.json();
-          setUser(me);
-        }
-      } catch (err) {
-        console.error("Failed to fetch /users/me:", err);
-        // On network error, we usually keep the user logged out
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
+    setLoading(false);
   }, [setUser]);
 
   if (loading) {
@@ -79,12 +43,15 @@ function App() {
         <Route path="/about" element={<About />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/professionals/:category" element={<Professionals />} />
+        <Route
+          path="/professionals/:category"
+          element={<Professionals />}
+        />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/bookings" element={<div className="p-6">Bookings page coming soon</div>}/>
-
-        
-
+        <Route
+          path="/bookings"
+          element={<div className="p-6">Bookings page coming soon</div>}
+        />
       </Routes>
     </>
   );

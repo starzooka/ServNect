@@ -46,10 +46,17 @@ export default function SignIn() {
       }
 
       // ✅ STORE TOKEN + USER TOGETHER (THIS FIXES EVERYTHING)
-      setUser({
+      const userData = {
         token: data.token,
         ...data.user,
-      });
+      };
+
+      // ✅ save to localStorage
+      localStorage.setItem("servnect_user", JSON.stringify(userData));
+
+      // ✅ update jotai state
+      setUser(userData);
+
 
       navigate("/");
     } catch (err) {
