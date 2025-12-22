@@ -59,22 +59,18 @@ resulting in a fully functional service connector platform.
 const team = [
   {
     name: "Shubhradeep Lodh",
-    role: "Frontend Developer",
     img: shubhradeepImg,
   },
   {
     name: "Tisha Banerjee",
-    role: "Backend Developer",
     img: tishaImg,
   },
   {
     name: "Anik Paul",
-    role: "Development & Design",
     img: anikImg,
   },
   {
     name: "Rittwik Mitra",
-    role: "Documentation & Testing",
     img:  rittwikImg,
   },
 ];
