@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ShieldAlert, Smartphone, KeyRound, AlertTriangle, Eye, EyeOff, CheckCircle2, AlertCircle, X, QrCode, Copy, Check } from "lucide-react";
+import { ArrowLeft, ShieldAlert, Smartphone, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, X, QrCode, Copy, Check } from "lucide-react";
 
 export default function AccountSettings() {
   const navigate = useNavigate();
@@ -379,21 +379,27 @@ export default function AccountSettings() {
                 <Label htmlFor="current_password" className="text-slate-900 font-medium">Current Password</Label>
                 <div className="relative flex items-center">
                   <Input id="current_password" type={showCurrent ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required className="pr-10 bg-white text-slate-900 border-slate-300 focus-visible:ring-blue-600 h-11" />
-                  <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 text-slate-400 hover:text-slate-600"><Eye className="h-5 w-5" /></button>
+                  <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 text-slate-400 hover:text-slate-600">
+                    {showCurrent ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new_password" className="text-slate-900 font-medium">New Password</Label>
                 <div className="relative flex items-center">
                   <Input id="new_password" type={showNew ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} className="pr-10 bg-white text-slate-900 border-slate-300 focus-visible:ring-blue-600 h-11" />
-                  <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 text-slate-400 hover:text-slate-600"><Eye className="h-5 w-5" /></button>
+                  <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 text-slate-400 hover:text-slate-600">
+                    {showNew ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm_password" className="text-slate-900 font-medium">Confirm New Password</Label>
                 <div className="relative flex items-center">
                   <Input id="confirm_password" type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="pr-10 bg-white text-slate-900 border-slate-300 focus-visible:ring-blue-600 h-11" />
-                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 text-slate-400 hover:text-slate-600"><Eye className="h-5 w-5" /></button>
+                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 text-slate-400 hover:text-slate-600">
+                    {showConfirm ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
               <Button type="submit" disabled={isProcessing} className="bg-blue-600 hover:bg-blue-700 text-white mt-2 h-11 px-8 font-semibold transition-transform active:scale-95">
