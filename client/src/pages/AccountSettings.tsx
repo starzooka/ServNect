@@ -31,7 +31,6 @@ export default function AccountSettings() {
   const [mfaError, setMfaError] = useState<string | null>(null);
   const [mfaSuccess, setMfaSuccess] = useState<string | null>(null);
   
-  // OTP Input State & Copy State
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [hasCopied, setHasCopied] = useState(false);
@@ -112,7 +111,6 @@ export default function AccountSettings() {
     setQrCodeSvg(data.totp.qr_code);
     setTotpSecret(data.totp.secret);
     
-    // Reset inputs
     setVerifyCode('');
     setOtp(['', '', '', '', '', '']);
     setShow2FAModal(true);
@@ -162,21 +160,19 @@ export default function AccountSettings() {
 
   // --- OTP INPUT HANDLERS ---
   const handleOtpChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return; // Only allow numbers
+    if (!/^\d*$/.test(value)) return; 
     
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1); // Take the last entered character
+    newOtp[index] = value.slice(-1); 
     setOtp(newOtp);
     setVerifyCode(newOtp.join(''));
 
-    // Move focus to next input if a number was entered
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Move focus to previous input on backspace if current input is empty
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -194,12 +190,10 @@ export default function AccountSettings() {
     setOtp(newOtp);
     setVerifyCode(newOtp.join(''));
 
-    // Focus the next empty input or the last one
     const nextIndex = Math.min(pastedData.length, 5);
     inputRefs.current[nextIndex]?.focus();
   };
 
-  // --- COPY HANDLER ---
   const copyToClipboard = () => {
     navigator.clipboard.writeText(totpSecret);
     setHasCopied(true);
@@ -261,7 +255,6 @@ export default function AccountSettings() {
               </p>
             </div>
 
-            {/* QR Code */}
             <div className="flex justify-center mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-inner overflow-hidden">
                <div 
                  className="[&>svg]:w-40 [&>svg]:h-40 flex justify-center items-center mix-blend-multiply" 
@@ -269,7 +262,6 @@ export default function AccountSettings() {
                />
             </div>
 
-            {/* Manual Code with Copy Button */}
             <div className="mb-8">
               <p className="text-[11px] text-slate-500 mb-1.5 uppercase font-bold tracking-wider ml-1">Manual Entry Code</p>
               <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-1.5 pl-4 rounded-xl shadow-sm">
@@ -277,9 +269,7 @@ export default function AccountSettings() {
                   {totpSecret}
                 </code>
                 <Button 
-                  onClick={copyToClipboard} 
-                  variant="ghost" 
-                  size="sm" 
+                  onClick={copyToClipboard} variant="ghost" size="sm" 
                   className={`h-8 w-8 p-0 rounded-lg hover:bg-slate-200 ${hasCopied ? 'text-green-600 hover:text-green-700' : 'text-slate-500'}`}
                 >
                   {hasCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -287,7 +277,6 @@ export default function AccountSettings() {
               </div>
             </div>
 
-            {/* Error Message */}
             {mfaError && (
               <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start gap-2 text-sm animate-in fade-in">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -295,7 +284,6 @@ export default function AccountSettings() {
               </div>
             )}
             
-            {/* 6-Box OTP Input */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-slate-900 font-medium ml-1">Enter 6-digit code from app</Label>
@@ -306,24 +294,15 @@ export default function AccountSettings() {
                       ref={(el) => {
                         inputRefs.current[index] = el;
                       }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
+                      type="text" inputMode="numeric" maxLength={1} value={digit}
                       onChange={(e) => handleOtpChange(index, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                      onPaste={handleOtpPaste}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)} onPaste={handleOtpPaste}
                       className="w-12 h-14 text-center text-xl font-bold bg-white border-slate-300 focus-visible:ring-blue-600 rounded-xl shadow-sm transition-all"
                     />
                   ))}
                 </div>
               </div>
-              
-              <Button 
-                onClick={verifyAndEnable2FA} 
-                disabled={isProcessing || verifyCode.length !== 6} 
-                className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-all active:scale-95 mt-4 rounded-xl"
-              >
+              <Button onClick={verifyAndEnable2FA} disabled={isProcessing || verifyCode.length !== 6} className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-all active:scale-95 mt-4 rounded-xl">
                 {isProcessing ? "Verifying..." : "Verify & Enable"}
               </Button>
             </div>
@@ -352,22 +331,11 @@ export default function AccountSettings() {
               <Label htmlFor="confirm_delete" className="text-slate-700">
                 To proceed, please type <span className="font-bold select-all bg-slate-100 px-1 rounded">Delete my account</span> below:
               </Label>
-              <Input 
-                id="confirm_delete"
-                type="text" 
-                value={deleteConfirmation} 
-                onChange={(e) => setDeleteConfirmation(e.target.value)} 
-                placeholder="Delete my account"
-                className="h-12 border-slate-300 focus-visible:ring-red-500 bg-slate-50"
-              />
+              <Input id="confirm_delete" type="text" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} placeholder="Delete my account" className="h-12 border-slate-300 focus-visible:ring-red-500 bg-slate-50" />
             </div>
 
             <div className="flex flex-col gap-3">
-              <Button 
-                onClick={executeAccountDeletion} 
-                disabled={isProcessing || deleteConfirmation !== "Delete my account"} 
-                className="w-full h-12 text-base font-bold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:bg-red-400 transition-all"
-              >
+              <Button onClick={executeAccountDeletion} disabled={isProcessing || deleteConfirmation !== "Delete my account"} className="w-full h-12 text-base font-bold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:bg-red-400 transition-all">
                 {isProcessing ? "Processing..." : "Sign Out & Schedule Deletion"}
               </Button>
               <Button onClick={closeDeleteModal} variant="outline" className="w-full h-12 text-base font-semibold border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors">
@@ -379,8 +347,6 @@ export default function AccountSettings() {
       )}
 
       <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500">
-        
-        {/* Header */}
         <div>
           <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 mb-4 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back

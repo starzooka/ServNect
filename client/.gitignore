@@ -11,12 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
-<<<<<<< HEAD
 
-
-=======
-.env
->>>>>>> fe4cb7d (major overhaul)
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -27,8 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-<<<<<<< HEAD
-
-.env
-=======
->>>>>>> fe4cb7d (major overhaul)

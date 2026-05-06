@@ -1,18 +1,23 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import CustomerSignUp from './pages/auth/CustomerSignUp';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import CustomerSignIn from './pages/auth/CustomerSignIn';
+import CustomerSignUp from './pages/auth/CustomerSignUp';
 import CustomerHome from './pages/CustomerHome';
 import AccountSettings from './pages/AccountSettings';
+
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-          <Route path="/signup" element={<CustomerSignUp />} />
-          <Route path="/login" element={<CustomerSignIn />} />
-          <Route path="/home" element={<CustomerHome />} />
-<Route path="/settings" element={<AccountSettings />} />
+        {/* Default route redirects to login */}
+        <Route path="/" element={<Navigate to="/login" />} />
+        
+        {/* Auth Routes */}
+        <Route path="/login" element={<CustomerSignIn />} />
+        <Route path="/signup" element={<CustomerSignUp />} />
+        
+        {/* Protected Dashboard Routes */}
+        <Route path="/home" element={<CustomerHome />} />
+        <Route path="/settings" element={<AccountSettings />} />
       </Routes>
     </Router>
   );

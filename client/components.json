@@ -1,14 +1,8 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-<<<<<<< HEAD
-  "style": "new-york",
-  "rsc": false,
-  "tsx": false,
-=======
   "style": "radix-nova",
   "rsc": false,
   "tsx": true,
->>>>>>> fe4cb7d (major overhaul)
   "tailwind": {
     "config": "",
     "css": "src/index.css",
@@ -17,10 +11,7 @@
     "prefix": ""
   },
   "iconLibrary": "lucide",
-<<<<<<< HEAD
-=======
   "rtl": false,
->>>>>>> fe4cb7d (major overhaul)
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
@@ -28,10 +19,7 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-<<<<<<< HEAD
-=======
   "menuColor": "default",
   "menuAccent": "subtle",
->>>>>>> fe4cb7d (major overhaul)
   "registries": {}
 }
