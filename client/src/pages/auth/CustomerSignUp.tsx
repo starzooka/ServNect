@@ -51,7 +51,7 @@ export default function CustomerSignUp() {
 
     if (data.user) {
       if (data.session) {
-        navigate('/home');
+        navigate('/LandingPage');
       } else {
         setIsSuccess(true);
       }
