@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wrench, ArrowLeft, Mail, Lock, AlertCircle, ShieldAlert, KeyRound, CheckCircle2 } from "lucide-react";
+import { Wrench, ArrowLeft, Mail, Lock, AlertCircle, ShieldAlert, CheckCircle2 } from "lucide-react";
 
 export default function CustomerSignIn() {
   const navigate = useNavigate();
