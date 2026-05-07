@@ -5,12 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ShieldAlert, Smartphone, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, X, QrCode, Copy, Check } from "lucide-react";
+import { ArrowLeft, ShieldAlert, Smartphone, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, X, QrCode, Copy, Check, User } from "lucide-react";
 
 export default function AccountSettings() {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // --- USER PROFILE STATE ---
+  const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+
   // --- PASSWORD STATE ---
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -39,18 +44,29 @@ export default function AccountSettings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
-  // --- INITIALIZE MFA STATUS ---
+  // --- INITIALIZE PROFILE & MFA STATUS ---
   useEffect(() => {
-    const checkMFAStatus = async () => {
-      const { data, error } = await supabase.auth.mfa.listFactors();
-      if (error) return;
-      const verifiedTotp = data.totp.find((factor: any) => factor.status === 'verified');
-      if (verifiedTotp) {
-        setIs2FAEnabled(true);
-        setFactorId(verifiedTotp.id);
+    const fetchInitialData = async () => {
+      // 1. Fetch User Profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email || '');
+        setUserName(user.user_metadata?.full_name || 'N/A');
+        setUserRole(user.user_metadata?.role || 'customer');
+      }
+
+      // 2. Fetch MFA Status
+      const { data: mfaData, error } = await supabase.auth.mfa.listFactors();
+      if (!error && mfaData) {
+        const verifiedTotp = mfaData.totp.find((factor: any) => factor.status === 'verified');
+        if (verifiedTotp) {
+          setIs2FAEnabled(true);
+          setFactorId(verifiedTotp.id);
+        }
       }
     };
-    checkMFAStatus();
+    
+    fetchInitialData();
   }, []);
 
   // --- PASSWORD LOGIC ---
@@ -354,6 +370,40 @@ export default function AccountSettings() {
           <h1 className="text-3xl font-bold tracking-tight">Account Settings</h1>
           <p className="text-slate-500">Manage your security preferences and account status.</p>
         </div>
+
+        {/* --- PERSONAL INFORMATION CARD --- */}
+        <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><User className="h-5 w-5 text-blue-600"/> Personal Information</CardTitle>
+            <CardDescription>Your account details. Contact support if you need to update this information.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 max-w-md">
+            <div className="space-y-2">
+              <Label className="text-slate-900 font-medium">Full Name</Label>
+              <Input 
+                value={userName} 
+                readOnly 
+                className="bg-slate-50 text-slate-500 cursor-not-allowed h-11 border-slate-200 focus-visible:ring-0" 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-900 font-medium">Email Address</Label>
+              <Input 
+                value={userEmail} 
+                readOnly 
+                className="bg-slate-50 text-slate-500 cursor-not-allowed h-11 border-slate-200 focus-visible:ring-0" 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-900 font-medium">Account Type</Label>
+              <Input 
+                value={userRole.charAt(0).toUpperCase() + userRole.slice(1)} 
+                readOnly 
+                className="bg-slate-50 text-slate-500 cursor-not-allowed h-11 border-slate-200 focus-visible:ring-0" 
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* --- CHANGE PASSWORD CARD --- */}
         <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { 
   MapPin, Search, Star, Wrench, Settings, LogOut, ShieldCheck, Zap, Droplets, Hammer, Paintbrush, ShieldAlert
@@ -32,7 +32,11 @@ export default function CustomerHome() {
   const [searchQuery, setSearchQuery] = useState('');
   
   const [userData, setUserData] = useState<{name: string, email: string} | null>(null);
+  
+  // Modal States
   const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
   const [deletionDates, setDeletionDates] = useState({ scheduledAt: '', deletedOn: '' });
 
   useEffect(() => {
@@ -91,6 +95,7 @@ export default function CustomerHome() {
   const requestLocation = () => setLocationEnabled(true);
   const firstName = userData?.name ? userData.name.split(' ')[0] : 'there';
 
+  // INTERCEPTOR: Show if account is pending deletion
   if (showRestoreModal) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -119,39 +124,85 @@ export default function CustomerHome() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+      
+      {/* --- LOGOUT CONFIRMATION MODAL --- */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-300 relative text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <LogOut className="w-8 h-8 text-red-600 ml-1" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Log Out?</h2>
+            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+              Are you sure you want to log out of your account? You will need to enter your credentials to log back in.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handleLogout} 
+                className="w-full h-12 text-base font-bold bg-red-600 hover:bg-red-700 text-white transition-all active:scale-95"
+              >
+                Yes, Log Out
+              </Button>
+              <Button 
+                onClick={() => setShowLogoutModal(false)} 
+                variant="outline" 
+                className="w-full h-12 text-base font-semibold border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- TOP NAVIGATION --- */}
       <nav className="sticky top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/home')}>
             <div className="bg-blue-600 p-1.5 rounded-lg shadow-sm"><Wrench className="h-5 w-5 text-white" /></div>
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">ServNect</span>
           </div>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-slate-200">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
+              <Button variant="ghost" className="h-11 pl-1.5 pr-4 rounded-full border border-slate-200 hover:bg-slate-50 gap-2.5 transition-all outline-none">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
                     {userData?.name ? userData.name[0].toUpperCase() : 'U'}
                   </AvatarFallback>
                 </Avatar>
+                <span className="text-sm font-semibold text-slate-700 hidden sm:block">
+                  {userData?.name || 'Loading...'}
+                </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none text-slate-900">{userData?.name || 'Loading...'}</p>
-                  <p className="text-xs leading-none text-slate-500">{userData?.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer text-slate-700 font-medium">
-                <Settings className="mr-2 h-4 w-4" /> Account Settings
+            
+            <DropdownMenuContent className="w-56 p-2 rounded-2xl border-slate-200 shadow-xl bg-white/95 backdrop-blur-xl mt-1" align="end" forceMount>
+              
+              <DropdownMenuItem 
+                onClick={() => navigate('/settings')} 
+                className="group cursor-pointer text-slate-700 font-medium p-3 rounded-xl focus:bg-slate-50 focus:text-blue-600 transition-colors"
+              >
+                <Settings className="mr-3 h-4 w-4 text-slate-500 group-focus:text-blue-600 transition-colors" /> 
+                Account Settings
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600 font-medium">
-                <LogOut className="mr-2 h-4 w-4" /> Log out
+              
+              <div className="h-px bg-slate-100 my-1 mx-2"></div>
+              
+              <DropdownMenuItem 
+                onClick={() => setShowLogoutModal(true)} 
+                className="group cursor-pointer text-red-600 font-medium p-3 rounded-xl focus:bg-red-50 focus:text-red-700 transition-colors"
+              >
+                <LogOut className="mr-3 h-4 w-4 text-red-600 group-focus:text-red-700 transition-colors" /> 
+                Log out
               </DropdownMenuItem>
+
             </DropdownMenuContent>
           </DropdownMenu>
+
         </div>
       </nav>
 
@@ -200,7 +251,7 @@ export default function CustomerHome() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {NEARBY_PROS.map((pro) => (
-              <Card key={pro.id} className="border-slate-200 hover:shadow-lg transition-shadow group cursor-pointer bg-white">
+              <Card key={pro.id} className="border-slate-200 hover:shadow-lg transition-shadow group cursor-pointer bg-white rounded-3xl">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-4">
@@ -218,7 +269,7 @@ export default function CustomerHome() {
                     </div>
                     {locationEnabled ? <span className="text-slate-500 flex items-center gap-1"><MapPin className="h-3 w-3"/> {pro.distance}</span> : null}
                   </div>
-                  <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-transform active:scale-95">View Profile</Button>
+                  <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-transform active:scale-95 h-11 rounded-xl">View Profile</Button>
                 </CardContent>
               </Card>
             ))}
