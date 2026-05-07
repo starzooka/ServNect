@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wrench, ArrowLeft, Mail, Lock, AlertCircle, ShieldAlert } from "lucide-react";
+import { Wrench, ArrowLeft, Mail, Lock, AlertCircle, ShieldAlert, KeyRound, CheckCircle2 } from "lucide-react";
 
 export default function CustomerSignIn() {
   const navigate = useNavigate();
@@ -15,10 +15,16 @@ export default function CustomerSignIn() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // --- FORGOT PASSWORD STATE ---
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+
+  // --- INTERCEPTOR STATE ---
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [deletionDate, setDeletionDate] = useState('');
   const [isRestoring, setIsRestoring] = useState(false);
 
+  // --- LOGIN LOGIC ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -55,6 +61,32 @@ export default function CustomerSignIn() {
     }
   };
 
+  // --- PASSWORD RESET LOGIC ---
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setErrorMsg("Please enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    // Tell Supabase to send the email, and route them to our new reset page
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
+      setResetSuccess(true);
+    }
+  };
+
+  // --- RESTORE ACCOUNT LOGIC ---
   const handleRestoreAccount = async () => {
     setIsRestoring(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -116,51 +148,116 @@ export default function CustomerSignIn() {
           </div>
         </div>
 
-        <Card className="border-slate-200/60 shadow-xl bg-white/95 backdrop-blur-xl">
-          <CardHeader className="space-y-2 text-center pb-6">
-            <CardTitle className="text-2xl font-bold text-slate-900">Welcome back</CardTitle>
-            <CardDescription className="text-slate-500">Log in to manage your bookings and messages.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {errorMsg && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2 text-sm animate-in fade-in">
-                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                <span>{errorMsg}</span>
+        <Card className="border-slate-200/60 shadow-xl bg-white/95 backdrop-blur-xl transition-all duration-300">
+          
+          {/* --- FORGOT PASSWORD SUCCESS STATE --- */}
+          {resetSuccess ? (
+            <CardContent className="pt-8 pb-8 text-center space-y-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
               </div>
-            )}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-900 font-medium">Email Address</Label>
-                <div className="relative flex items-center">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required className="pl-10 h-11 bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus-visible:ring-blue-600" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-slate-900 font-medium">Password</Label>
-                  <a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">Forgot password?</a>
-                </div>
-                <div className="relative flex items-center">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                  <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="pl-10 h-11 bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus-visible:ring-blue-600" />
-                </div>
-              </div>
-              <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-base font-semibold mt-2 transition-transform active:scale-95" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Log In"}
+              <h2 className="text-2xl font-bold text-slate-900">Check your email</h2>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                We've sent a password reset link to <br/><strong>{email}</strong>.
+              </p>
+              <Button 
+                onClick={() => { setResetSuccess(false); setIsResetMode(false); }} 
+                variant="outline" 
+                className="w-full h-11 mt-4 border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+              >
+                Back to Login
               </Button>
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-500 font-medium">Or continue with</span></div>
-              </div>
-              <Button type="button" variant="white" className="w-full h-11 font-semibold">
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
-                Continue with Google
-              </Button>
-            </form>
-          </CardContent>
+            </CardContent>
+
+          ) : isResetMode ? (
+            
+          /* --- FORGOT PASSWORD FORM STATE --- */
+            <>
+              <CardHeader className="space-y-2 text-center pb-6">
+                <CardTitle className="text-2xl font-bold text-slate-900">Reset Password</CardTitle>
+                <CardDescription className="text-slate-500">Enter your email and we'll send you a link to reset your password.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {errorMsg && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2 text-sm animate-in fade-in">
+                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+                <form onSubmit={handleResetPassword} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email" className="text-slate-900 font-medium">Email Address</Label>
+                    <div className="relative flex items-center">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                      <Input id="reset-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required className="pl-10 h-11 bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus-visible:ring-blue-600" />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-base font-semibold mt-2 transition-transform active:scale-95" disabled={isLoading}>
+                    {isLoading ? "Sending link..." : "Send Reset Link"}
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => { setIsResetMode(false); setErrorMsg(null); }} className="w-full h-11 text-slate-600 hover:text-slate-900">
+                    Cancel
+                  </Button>
+                </form>
+              </CardContent>
+            </>
+
+          ) : (
+
+          /* --- NORMAL LOGIN FORM STATE --- */
+            <>
+              <CardHeader className="space-y-2 text-center pb-6">
+                <CardTitle className="text-2xl font-bold text-slate-900">Welcome back</CardTitle>
+                <CardDescription className="text-slate-500">Log in to manage your bookings and messages.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {errorMsg && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg flex items-start gap-2 text-sm animate-in fade-in">
+                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-slate-900 font-medium">Email Address</Label>
+                    <div className="relative flex items-center">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                      <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required className="pl-10 h-11 bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus-visible:ring-blue-600" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password" className="text-slate-900 font-medium">Password</Label>
+                      <button type="button" onClick={() => { setIsResetMode(true); setErrorMsg(null); }} className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">Forgot password?</button>
+                    </div>
+                    <div className="relative flex items-center">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                      <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="pl-10 h-11 bg-white text-slate-900 border-slate-300 placeholder:text-slate-400 focus-visible:ring-blue-600" />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-base font-semibold mt-2 transition-transform active:scale-95" disabled={isLoading}>
+                    {isLoading ? "Logging in..." : "Log In"}
+                  </Button>
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-500 font-medium">Or continue with</span></div>
+                  </div>
+                  <Button type="button" variant="white" className="w-full h-11 font-semibold">
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
+                    Continue with Google
+                  </Button>
+                </form>
+              </CardContent>
+            </>
+          )}
+
         </Card>
-        <p className="text-center text-sm text-slate-600 mt-6">Don't have an account? <Link to="/signup" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline">Sign up</Link></p>
+        
+        {!isResetMode && !resetSuccess && (
+          <p className="text-center text-sm text-slate-600 mt-6">
+            Don't have an account? <Link to="/signup" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline">Sign up</Link>
+          </p>
+        )}
       </div>
     </div>
   );

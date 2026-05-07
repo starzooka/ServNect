@@ -4,6 +4,7 @@ import CustomerSignIn from './pages/auth/CustomerSignIn';
 import CustomerSignUp from './pages/auth/CustomerSignUp';
 import CustomerHome from './pages/CustomerHome';
 import AccountSettings from './pages/AccountSettings';
+import ResetPassword from './pages/auth/ResetPassword';
 
 function App() {
   return (
@@ -15,7 +16,8 @@ function App() {
         {/* Auth Routes */}
         <Route path="/login" element={<CustomerSignIn />} />
         <Route path="/signup" element={<CustomerSignUp />} />
-        
+        <Route path="/reset-password" element={<ResetPassword />} />
+
         {/* Protected Dashboard Routes */}
         <Route path="/home" element={<CustomerHome />} />
         <Route path="/settings" element={<AccountSettings />} />
