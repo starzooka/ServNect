@@ -1,33 +1,54 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+// --- MAIN PAGES ---
 import LandingPage from './pages/LandingPage';
-import CustomerSignIn from './pages/auth/CustomerSignIn';
-import CustomerSignUp from './pages/auth/CustomerSignUp';
-import CustomerHome from './pages/CustomerHome';
-import AccountSettings from './pages/AccountSettings';
+
+// --- AUTH PAGES (Shared) ---
+import CustomerSignIn from './pages/auth/SignIn';
+import CustomerSignUp from './pages/auth/SignUp';
 import ResetPassword from './pages/auth/ResetPassword';
 
-function App() {
+// --- SHARED DASHBOARD PAGES ---
+import AccountSettings from './pages/shared/AccountSettings';
+
+// --- CUSTOMER PAGES ---
+import CustomerHome from './pages/customer/CustomerHome';
+
+// --- PROFESSIONAL PAGES ---
+import ProfessionalLanding from './pages/professional/ProfessionalLanding';
+import ProfessionalDashboard from './pages/professional/ProfessionalDashboard';
+import ProOnboarding from './pages/professional/ProOnboarding';
+
+export default function App() {
+  const host = window.location.hostname;
+  const isProDomain = host.startsWith('pro.');
+
   return (
     <Router>
-      <Routes>
-        {/* The Landing Page is now the default view */}
-        <Route path="/" element={<LandingPage />} />
-        
-        {/* Auth Routes */}
-        <Route path="/login" element={<CustomerSignIn />} />
-        <Route path="/signup" element={<CustomerSignUp />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      {isProDomain ? (
+        <Routes>
+          <Route path="/" element={<ProfessionalLanding />} />
+          
+          <Route path="/dashboard" element={<ProfessionalDashboard />} />
+          <Route path="/onboarding" element={<ProOnboarding />} />
+          <Route path="/settings" element={<AccountSettings />} />
 
-        {/* Protected Dashboard Routes */}
-        <Route path="/home" element={<CustomerHome />} />
-        <Route path="/settings" element={<AccountSettings />} />
-
-        {/* Note: The Landing Page links to a '/partner' page in the bottom section. 
-            You can create a separate Signup for Pros later, but for now, we can map it to standard signup */}
-        <Route path="/partner" element={<CustomerSignUp />} />
-      </Routes>
+          <Route path="/signup" element={<CustomerSignUp />} />
+          <Route path="/login" element={<CustomerSignIn />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Routes>
+      ) : (
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          
+          <Route path="/login" element={<CustomerSignIn />} />
+          <Route path="/signup" element={<CustomerSignUp />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          
+          <Route path="/home" element={<CustomerHome />} />
+          <Route path="/settings" element={<AccountSettings />} />
+        </Routes>
+      )}
     </Router>
   );
 }
-
-export default App;

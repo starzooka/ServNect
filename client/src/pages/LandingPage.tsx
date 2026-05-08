@@ -406,7 +406,13 @@ export default function LandingPage() {
 
             <div className="flex-shrink-0 w-full md:w-auto mt-8 md:mt-0">
               <Button 
-                onClick={() => navigate('/partner')} 
+                onClick={() => {
+  // If testing locally, go to pro.localhost. If in production, go to pro.servnect.in
+  const isLocal = window.location.hostname.includes('localhost');
+  window.location.href = isLocal 
+    ? 'http://pro.localhost:5173' 
+    : 'https://pro.servnect.in';
+}} 
                 className="w-full md:w-auto bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-lg font-bold px-10 py-8 rounded-2xl transition-all duration-300 shadow-[0_0_40px_rgba(245,158,11,0.25)] hover:shadow-[0_0_60px_rgba(245,158,11,0.4)] hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border border-amber-300/50"
               >
                 Apply as a Partner
