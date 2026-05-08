@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   ArrowRight, Wrench, Briefcase, DollarSign, CalendarDays, 
-  MessageSquare, ShieldCheck, TrendingUp, CheckCircle2 
+  MessageSquare, ShieldCheck, TrendingUp
 } from "lucide-react";
 
 // --- ANIMATION HELPER ---
