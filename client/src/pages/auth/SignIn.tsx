@@ -51,8 +51,10 @@ export default function SignIn() {
           setDeletionDate(deletedOn.toLocaleDateString(undefined, formatOptions));
           setShowRestoreModal(true);
         } else if (!proProfile || !proProfile.category) {
+          // If no fully set up pro profile exists, send to Onboarding
           navigate('/onboarding');
         } else {
+          // Fully set up, send to Dashboard
           navigate('/dashboard'); 
         }
 
@@ -70,6 +72,16 @@ export default function SignIn() {
           setDeletionDate(deletedOn.toLocaleDateString(undefined, formatOptions));
           setShowRestoreModal(true);
         } else {
+          // --- SILENT CROSSOVER CREATION ---
+          // If a Pro logs into the Customer side for the first time, auto-generate their customer row
+          if (!customerProfile) {
+            await supabase.from('customers').upsert({
+              id: data.user.id,
+              full_name: data.user.user_metadata?.full_name || '',
+              email: data.user.email || '',
+              phone: data.user.user_metadata?.phone || null
+            });
+          }
           navigate('/home'); 
         }
       }

@@ -36,9 +36,8 @@ export default function SignUp() {
       if (authError) throw authError;
 
       // --- THE SUPABASE FAKE SUCCESS CATCHER ---
-      // If identities is empty, it means the user already exists in the system!
       if (data.user && data.user.identities && data.user.identities.length === 0) {
-        throw new Error("This email is already registered! Please click 'Log in' below.");
+        throw new Error("already registered");
       }
 
       // --- USE UPSERT TO PREVENT PRIMARY KEY CRASHES ---
@@ -51,7 +50,6 @@ export default function SignUp() {
           phone: formData.phone || null
         };
         
-        // .upsert() will gracefully overwrite if the row exists (like on a double-click)
         const { error: dbError } = await supabase.from(tableName).upsert([profileData]);
         if (dbError) throw dbError;
       }
@@ -60,9 +58,16 @@ export default function SignUp() {
       setTimeout(() => navigate('/login'), 3000);
       
     } catch (error: any) {
+      // --- UPGRADED DOMAIN-AWARE UX MESSAGING ---
       if (error.message?.toLowerCase().includes('already registered')) {
-        setErrorMsg("This email is already registered! Please click 'Log in' below to access your account or complete your Partner profile.");
-      } else setErrorMsg(error.message);
+        if (isProDomain) {
+          setErrorMsg("Great news! You already have a Customer account with this email. You don't need to sign up again—just click 'Log in' below using your existing password to set up your Partner profile.");
+        } else {
+          setErrorMsg("It looks like you already have a Partner account with us! You can use the exact same email and password to log in as a Customer. Just click 'Log in' below.");
+        }
+      } else {
+        setErrorMsg(error.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +105,7 @@ export default function SignUp() {
                 <CardDescription className={isProDomain ? 'text-slate-400' : 'text-slate-500'}>Get started in seconds.</CardDescription>
               </CardHeader>
               <CardContent>
-                {errorMsg && <div className={`mb-6 p-3 rounded-lg flex items-start gap-2 text-sm animate-in fade-in ${isProDomain ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-red-50 border border-red-200 text-red-600'}`}><AlertCircle className="h-5 w-5 shrink-0 mt-0.5" /><span>{errorMsg}</span></div>}
+                {errorMsg && <div className={`mb-6 p-3 rounded-lg flex items-start gap-2 text-sm animate-in fade-in ${isProDomain ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}><AlertCircle className="h-5 w-5 shrink-0 mt-0.5" /><span>{errorMsg}</span></div>}
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
                     <div className="space-y-2">
