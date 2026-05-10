@@ -55,8 +55,10 @@ export default function ProfessionalDashboard() {
       }
 
       fetchJobs(user.id);
+      
+      // FIX: Removed "payload =>" and replaced with "() =>"
       realtimeSubscription = supabase.channel(`bookings_pro_${Date.now()}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `professional_id=eq.${user.id}` }, payload => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `professional_id=eq.${user.id}` }, () => {
           fetchJobs(user.id); 
         }).subscribe();
     };
@@ -69,7 +71,6 @@ export default function ProfessionalDashboard() {
     let chatSubscription: any;
     if (activeChat) {
       fetchMessages(activeChat.id);
-      // FIXED: Listening to booking_messages
       chatSubscription = supabase.channel(`chat_${activeChat.id}_${Date.now()}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'booking_messages', filter: `booking_id=eq.${activeChat.id}` }, payload => {
           setMessages(prev => [...prev, payload.new]);
@@ -90,7 +91,6 @@ export default function ProfessionalDashboard() {
   };
 
   const fetchMessages = async (bookingId: string) => {
-    // FIXED: Fetching from booking_messages
     const { data } = await supabase.from('booking_messages').select('*').eq('booking_id', bookingId).order('created_at', { ascending: true });
     if (data) {
       setMessages(data);
@@ -123,7 +123,6 @@ export default function ProfessionalDashboard() {
     const messageContent = newMessage;
     setNewMessage(''); 
 
-    // FIXED: Sending to booking_messages + Error checking
     const { error } = await supabase.from('booking_messages').insert([{
       booking_id: activeChat.id,
       customer_id: activeChat.customer_id,
@@ -134,7 +133,7 @@ export default function ProfessionalDashboard() {
 
     if (error) {
       alert("Failed to send message: " + error.message);
-      setNewMessage(messageContent); // Put text back in input
+      setNewMessage(messageContent); 
     }
   };
 

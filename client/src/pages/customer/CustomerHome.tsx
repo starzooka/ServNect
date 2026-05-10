@@ -42,7 +42,6 @@ export default function CustomerHome() {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingForm, setBookingForm] = useState({ issue: '', address: '' });
 
-  // CANCEL MODAL STATE
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
 
   // CHAT STATES
@@ -73,8 +72,9 @@ export default function CustomerHome() {
       fetchProfessionals();
       fetchMyBookings(user.id);
 
+      // FIX: Removed "payload =>" and replaced with "() =>"
       realtimeSubscription = supabase.channel(`bookings_customer_${Date.now()}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `customer_id=eq.${user.id}` }, payload => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `customer_id=eq.${user.id}` }, () => {
           fetchMyBookings(user.id); 
         }).subscribe();
     };
@@ -222,7 +222,6 @@ export default function CustomerHome() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 relative">
       
-      {/* --- LOGOUT CONFIRMATION MODAL --- */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-300 relative text-center">
@@ -237,7 +236,6 @@ export default function CustomerHome() {
         </div>
       )}
 
-      {/* --- CANCEL CONFIRMATION MODAL --- */}
       {cancelBookingId && (
         <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-300 relative text-center">
@@ -252,7 +250,6 @@ export default function CustomerHome() {
         </div>
       )}
 
-      {/* BOOKING MODAL */}
       {selectedPro && (
         <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-300 relative">
@@ -278,7 +275,6 @@ export default function CustomerHome() {
         </div>
       )}
 
-      {/* CHAT MODAL */}
       {activeChat && (
         <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full h-[85vh] shadow-2xl animate-in zoom-in-95 duration-300 relative flex flex-col overflow-hidden">
@@ -313,7 +309,6 @@ export default function CustomerHome() {
         </div>
       )}
 
-      {/* TOP NAVIGATION */}
       <nav className="sticky top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/home')}>
