@@ -121,6 +121,8 @@ export default function AccountSettings() {
   // --- PRO PROFILE UPDATE HANDLERS ---
   const handleUpdateBusinessProfile = async () => {
     if (!userId) return;
+    if (proData.categories.length === 0) return showMsg('error', 'You must select at least one service category.');
+    
     setIsProcessing(true);
     try {
       const { error } = await supabase.from('professionals').update({
@@ -153,7 +155,6 @@ export default function AccountSettings() {
   const handleDocumentUpload = async () => {
     if (!uploadFile) return showMsg('error', 'Please select a document first.');
     setIsProcessing(true);
-    // Simulate upload success
     setTimeout(() => {
       showMsg('success', 'Document submitted! Our team will review it within 24 hours.');
       setUploadFile(null);
@@ -168,12 +169,18 @@ export default function AccountSettings() {
     if (trimmed && !proData.categories.includes(trimmed)) setProData(prev => ({ ...prev, categories: [...prev.categories, trimmed] }));
     setCategoryInput(''); setShowCategorySuggestions(false);
   };
+  const removeCategory = (catToRemove: string) => {
+    setProData(prev => ({ ...prev, categories: prev.categories.filter(c => c !== catToRemove) }));
+  };
 
   const filteredCities = CITIES.filter(c => c.toLowerCase().includes(cityInput.toLowerCase()) && !proData.cities.includes(c));
   const addCity = (city: string) => {
     const trimmed = city.trim();
     if (trimmed && !proData.cities.includes(trimmed)) setProData(prev => ({ ...prev, cities: [...prev.cities, trimmed] }));
     setCityInput(''); setShowCitySuggestions(false);
+  };
+  const removeCity = (cityToRemove: string) => {
+    setProData(prev => ({ ...prev, cities: prev.cities.filter(c => c !== cityToRemove) }));
   };
 
   // --- PASSWORD LOGIC ---
@@ -311,7 +318,7 @@ export default function AccountSettings() {
   };
 
   return (
-    <div className={`min-h-screen font-sans py-10 px-4 ${isProDomain ? 'bg-slate-950 text-slate-300' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`min-h-screen font-sans pt-10 pb-64 px-4 ${isProDomain ? 'bg-slate-950 text-slate-300' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* --- 2FA SETUP MODAL --- */}
       {show2FAModal && (
@@ -454,12 +461,12 @@ export default function AccountSettings() {
             ========================================= */}
         {(!isProDomain || activeTab === 'security') && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
-            <Card className={`shadow-sm overflow-hidden ${isProDomain ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <Card className={`shadow-sm overflow-visible ${isProDomain ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 ${isProDomain ? 'text-white' : 'text-slate-900'}`}><User className={`h-5 w-5 ${isProDomain ? 'text-amber-500' : 'text-blue-600'}`}/> Personal Information</CardTitle>
                 <CardDescription className={isProDomain ? 'text-slate-400' : 'text-slate-500'}>Your core account details.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5 max-w-md">
+              <CardContent className="space-y-5 max-w-md overflow-visible">
                 <div className="space-y-2">
                   <Label className={`font-medium ${isProDomain ? 'text-slate-300' : 'text-slate-900'}`}>Full Name</Label>
                   <Input value={userName} readOnly className={`cursor-not-allowed h-11 focus-visible:ring-0 ${isProDomain ? 'bg-slate-950 border-slate-800 text-slate-500' : 'bg-slate-50 text-slate-500 border-slate-200'}`} />
@@ -471,12 +478,12 @@ export default function AccountSettings() {
               </CardContent>
             </Card>
 
-            <Card className={`shadow-sm overflow-hidden ${isProDomain ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <Card className={`shadow-sm overflow-visible ${isProDomain ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 ${isProDomain ? 'text-white' : 'text-slate-900'}`}><KeyRound className={`h-5 w-5 ${isProDomain ? 'text-amber-500' : 'text-blue-600'}`}/> Change Password</CardTitle>
                 <CardDescription className={isProDomain ? 'text-slate-400' : 'text-slate-500'}>Ensure your account is using a long, random password.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-visible">
                 <form onSubmit={handlePasswordChange} className="space-y-5 max-w-md">
                   <div className="space-y-2">
                     <Label className={`font-medium ${isProDomain ? 'text-slate-300' : 'text-slate-900'}`}>Current Password</Label>
@@ -506,12 +513,12 @@ export default function AccountSettings() {
               </CardContent>
             </Card>
 
-            <Card className={`shadow-sm overflow-hidden ${isProDomain ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <Card className={`shadow-sm overflow-visible ${isProDomain ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 ${isProDomain ? 'text-white' : 'text-slate-900'}`}><Smartphone className={`h-5 w-5 ${isProDomain ? 'text-amber-500' : 'text-blue-600'}`}/> Two-Factor Authentication</CardTitle>
                 <CardDescription className={isProDomain ? 'text-slate-400' : 'text-slate-500'}>Add an extra layer of security to your account.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-visible">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <p className={`font-medium ${isProDomain ? 'text-slate-200' : 'text-slate-900'}`}>{is2FAEnabled ? "2FA is currently enabled" : "2FA is currently disabled"}</p>
@@ -524,11 +531,11 @@ export default function AccountSettings() {
               </CardContent>
             </Card>
 
-            <Card className={`shadow-sm ${isProDomain ? 'bg-slate-900 border-red-900/30' : 'bg-white border-red-200'}`}>
+            <Card className={`shadow-sm overflow-visible ${isProDomain ? 'bg-slate-900 border-red-900/30' : 'bg-white border-red-200'}`}>
               <CardHeader>
                 <CardTitle className="text-red-500 flex items-center gap-2"><ShieldAlert className="h-5 w-5"/> Danger Zone</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 overflow-visible">
                 <div>
                   <p className={`font-medium ${isProDomain ? 'text-slate-200' : 'text-slate-900'}`}>Delete Account</p>
                   <p className={`text-sm max-w-md mt-1 ${isProDomain ? 'text-slate-400' : 'text-slate-500'}`}>Permanently remove your account and data. This initiates a 30-day cooldown.</p>
@@ -546,22 +553,26 @@ export default function AccountSettings() {
             ========================================= */}
         {isProDomain && activeTab === 'business' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
-            <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-hidden">
+            {/* EXPLICIT OVERFLOW-VISIBLE OVERRIDE */}
+            <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-visible">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white"><Briefcase className="h-5 w-5 text-amber-500"/> Service Details</CardTitle>
                 <CardDescription className="text-slate-400">Update the services you offer and your rates to attract the right customers.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-visible">
                 <div className="space-y-6 max-w-2xl">
                   
                   {/* Multi-Select Categories */}
-                  <div className="space-y-3 relative">
+                  <div className="space-y-3 relative overflow-visible">
                     <Label className="font-medium text-slate-300">Services Offered</Label>
                     {proData.categories.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {proData.categories.map(cat => (
                           <Badge key={cat} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500/10 text-amber-500 border-amber-500/20">
-                            {cat} <X className="w-3.5 h-3.5 cursor-pointer hover:text-red-400 transition-colors" onClick={() => setProData(p => ({ ...p, categories: p.categories.filter(c => c !== cat)}))} />
+                            {cat} 
+                            <button type="button" onClick={() => removeCategory(cat)} className="hover:text-red-400 transition-colors focus:outline-none ml-1">
+                              <X className="w-3.5 h-3.5 cursor-pointer" />
+                            </button>
                           </Badge>
                         ))}
                       </div>
@@ -578,7 +589,7 @@ export default function AccountSettings() {
                       <Button type="button" size="sm" onClick={() => addCategory(categoryInput)} className="absolute right-1.5 h-8 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950">Add</Button>
                     </div>
                     {showCategorySuggestions && categoryInput && filteredCategories.length > 0 && (
-                      <div className="absolute z-20 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-800 border-slate-700">
+                      <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-800 border-slate-700">
                         {filteredCategories.map(cat => (
                           <div key={cat} onClick={() => addCategory(cat)} className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-700 hover:text-white">{cat}</div>
                         ))}
@@ -619,21 +630,25 @@ export default function AccountSettings() {
             ========================================= */}
         {isProDomain && activeTab === 'locations' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
-            <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-hidden">
+            {/* EXPLICIT OVERFLOW-VISIBLE OVERRIDE */}
+            <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-visible">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white"><MapPin className="h-5 w-5 text-amber-500"/> Target Cities</CardTitle>
                 <CardDescription className="text-slate-400">Select multiple cities where your services are available.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-visible">
                 <div className="space-y-6 max-w-2xl">
                   
-                  <div className="space-y-3 relative">
+                  <div className="space-y-3 relative overflow-visible">
                     <Label className="font-medium text-slate-300">Active Service Cities</Label>
                     {proData.cities.length > 0 ? (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {proData.cities.map(city => (
                           <Badge key={city} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500/10 text-amber-500 border-amber-500/20">
-                            {city} <X className="w-3.5 h-3.5 cursor-pointer hover:text-red-400 transition-colors" onClick={() => setProData(p => ({ ...p, cities: p.cities.filter(c => c !== city)}))} />
+                            {city} 
+                            <button type="button" onClick={() => removeCity(city)} className="hover:text-red-400 transition-colors focus:outline-none ml-1">
+                              <X className="w-3.5 h-3.5 cursor-pointer" />
+                            </button>
                           </Badge>
                         ))}
                       </div>
@@ -654,7 +669,7 @@ export default function AccountSettings() {
                     </div>
 
                     {showCitySuggestions && cityInput && filteredCities.length > 0 && (
-                      <div className="absolute z-20 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-800 border-slate-700">
+                      <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-800 border-slate-700">
                         {filteredCities.map(city => (
                           <div key={city} onClick={() => addCity(city)} className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-700 hover:text-white">{city}</div>
                         ))}
@@ -678,8 +693,8 @@ export default function AccountSettings() {
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
             
             {/* Status Card */}
-            <Card className={`shadow-sm border ${proData.isVerified ? 'bg-green-500/10 border-green-500/20' : 'bg-slate-900 border-slate-800'}`}>
-              <CardContent className="p-6 flex items-center justify-between">
+            <Card className={`shadow-sm border overflow-visible ${proData.isVerified ? 'bg-green-500/10 border-green-500/20' : 'bg-slate-900 border-slate-800'}`}>
+              <CardContent className="p-6 flex items-center justify-between overflow-visible">
                 <div>
                   <h3 className={`font-bold text-lg mb-1 flex items-center gap-2 ${proData.isVerified ? 'text-green-500' : 'text-white'}`}>
                     {proData.isVerified ? <CheckCircle2 className="w-5 h-5"/> : <AlertCircle className="w-5 h-5 text-amber-500"/>}
@@ -696,12 +711,12 @@ export default function AccountSettings() {
 
             {/* Upload Card */}
             {!proData.isVerified && (
-              <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-hidden">
+              <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-visible">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-white"><ShieldCheck className="h-5 w-5 text-amber-500"/> Identity Verification</CardTitle>
                   <CardDescription className="text-slate-400">Accepted documents: Aadhaar Card, PAN Card, Driving License, or Passport.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="overflow-visible">
                   <div className="max-w-xl space-y-6">
                     <div className="border-2 border-dashed border-slate-700 rounded-2xl p-8 text-center hover:bg-slate-800/50 transition-colors relative cursor-pointer">
                       <input 

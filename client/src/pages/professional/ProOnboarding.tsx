@@ -18,7 +18,6 @@ export default function ProOnboarding() {
   const [step, setStep] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
   
-  // --- NEW: TO PULL EXISTING AUTH IDENTITY ---
   const [authData, setAuthData] = useState({ full_name: '', email: '', phone: '' });
 
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -36,7 +35,6 @@ export default function ProOnboarding() {
         navigate('/login');
       } else {
         setUserId(user.id);
-        // Grab their identity from the Auth Vault so we can inject it into the table
         setAuthData({
           full_name: user.user_metadata?.full_name || '',
           email: user.email || '',
@@ -73,7 +71,6 @@ export default function ProOnboarding() {
     setErrorMsg(null);
 
     try {
-      // --- UPDATED: INJECTING AUTH IDENTITY DURING UPSERT ---
       const { error } = await supabase.from('professionals').upsert({
         id: userId,
         full_name: authData.full_name,
@@ -102,7 +99,7 @@ export default function ProOnboarding() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-slate-950 text-slate-300">
+    <div className="min-h-screen flex flex-col items-center pt-20 pb-64 px-4 relative overflow-x-hidden bg-slate-950 text-slate-300">
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-blob bg-amber-600"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-blob animation-delay-2000 bg-orange-600"></div>
 
@@ -112,7 +109,8 @@ export default function ProOnboarding() {
           Log out
         </button>
 
-        <Card className="bg-slate-900/95 border-slate-800 shadow-xl shadow-amber-900/10 backdrop-blur-xl mt-8">
+        {/* EXPLICIT OVERFLOW-VISIBLE OVERRIDE */}
+        <Card className="bg-slate-900/95 border-slate-800 shadow-xl shadow-amber-900/10 backdrop-blur-xl mt-8 overflow-visible">
           <CardHeader className="space-y-2 text-center pb-6">
             <CardTitle className="text-2xl font-bold text-white">Complete Your Account</CardTitle>
             <CardDescription className="text-slate-400">
@@ -120,7 +118,7 @@ export default function ProOnboarding() {
             </CardDescription>
           </CardHeader>
           
-          <CardContent>
+          <CardContent className="overflow-visible">
             {errorMsg && (
               <div className="mb-6 p-3 rounded-lg flex items-start gap-2 text-sm animate-in fade-in bg-red-500/10 border border-red-500/20 text-red-400">
                 <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" /><span>{errorMsg}</span>
@@ -132,14 +130,17 @@ export default function ProOnboarding() {
               {/* --- STEP 1: SERVICES --- */}
               {step === 1 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                  <div className="space-y-3 relative">
+                  <div className="space-y-3 relative overflow-visible">
                     <Label className="font-medium text-slate-300">Service Categories</Label>
                     
                     {formData.categories.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {formData.categories.map(cat => (
                           <Badge key={cat} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500/10 text-amber-500 border-amber-500/20">
-                            {cat} <X className="w-3.5 h-3.5 cursor-pointer hover:text-red-500 transition-colors" onClick={() => removeCategory(cat)} />
+                            {cat} 
+                            <button type="button" onClick={() => removeCategory(cat)} className="hover:text-red-400 transition-colors focus:outline-none ml-1">
+                              <X className="w-3.5 h-3.5 cursor-pointer" />
+                            </button>
                           </Badge>
                         ))}
                       </div>
@@ -158,7 +159,7 @@ export default function ProOnboarding() {
                     </div>
 
                     {showSuggestions && categoryInput && filteredCategories.length > 0 && (
-                      <div className="absolute z-20 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-900 border-slate-800">
+                      <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-900 border-slate-800">
                         {filteredCategories.map(cat => (
                           <div key={cat} onClick={() => addCategory(cat)} className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-800 hover:text-white">{cat}</div>
                         ))}
