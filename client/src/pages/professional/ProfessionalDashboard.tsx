@@ -23,6 +23,10 @@ export default function ProfessionalDashboard() {
 
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [scheduledJobs, setScheduledJobs] = useState<any[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<any[]>([]);
+
+  // --- NEW: RATING STATE ---
+  const [proRating, setProRating] = useState({ average: 0, count: 0 });
 
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -35,6 +39,8 @@ export default function ProfessionalDashboard() {
 
   useEffect(() => {
     let realtimeSubscription: any;
+    let reviewSubscription: any; // Realtime for reviews
+
     const initializeDashboard = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return navigate('/login');
@@ -55,16 +61,25 @@ export default function ProfessionalDashboard() {
       }
 
       fetchJobs(user.id);
+      fetchReviews(user.id);
       
-      // FIX: Removed "payload =>" and replaced with "() =>"
       realtimeSubscription = supabase.channel(`bookings_pro_${Date.now()}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `professional_id=eq.${user.id}` }, () => {
           fetchJobs(user.id); 
         }).subscribe();
+
+      // Subscribe to instant review updates
+      reviewSubscription = supabase.channel(`reviews_pro_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `professional_id=eq.${user.id}` }, () => {
+          fetchReviews(user.id); 
+        }).subscribe();
     };
 
     initializeDashboard();
-    return () => { if (realtimeSubscription) supabase.removeChannel(realtimeSubscription); };
+    return () => { 
+      if (realtimeSubscription) supabase.removeChannel(realtimeSubscription); 
+      if (reviewSubscription) supabase.removeChannel(reviewSubscription); 
+    };
   }, [navigate]);
 
   useEffect(() => {
@@ -87,6 +102,18 @@ export default function ProfessionalDashboard() {
     if (!error && data) {
       setIncomingRequests(data.filter(job => job.status === 'pending'));
       setScheduledJobs(data.filter(job => job.status === 'accepted'));
+      setCompletedJobs(data.filter(job => job.status === 'completed'));
+    }
+  };
+
+  // --- NEW: FETCH REVIEWS ---
+  const fetchReviews = async (proId: string) => {
+    const { data } = await supabase.from('reviews').select('rating').eq('professional_id', proId);
+    if (data && data.length > 0) {
+      const sum = data.reduce((acc, curr) => acc + curr.rating, 0);
+      setProRating({ average: sum / data.length, count: data.length });
+    } else {
+      setProRating({ average: 0, count: 0 });
     }
   };
 
@@ -261,8 +288,30 @@ export default function ProfessionalDashboard() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="bg-slate-900 border-slate-800 shadow-sm rounded-2xl"><CardContent className="p-5 flex flex-col justify-center"><p className="text-sm font-medium text-slate-400 mb-1 flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> This Week</p><p className="text-2xl font-bold text-white">₹0</p></CardContent></Card>
-          <Card className="bg-slate-900 border-slate-800 shadow-sm rounded-2xl"><CardContent className="p-5 flex flex-col justify-center"><p className="text-sm font-medium text-slate-400 mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Completed</p><p className="text-2xl font-bold text-white">0 Jobs</p></CardContent></Card>
-          <Card className="border-none shadow-sm rounded-2xl col-span-2 md:col-span-2 bg-gradient-to-br from-amber-600 to-orange-600 text-white relative overflow-hidden"><div className="absolute -right-4 -top-4 w-24 h-24 bg-white/20 blur-2xl rounded-full"></div><CardContent className="p-5 flex items-center justify-between h-full relative z-10"><div><p className="text-amber-100 font-medium mb-1 flex items-center gap-1.5"><Star className="w-4 h-4 fill-amber-100" /> Current Rating</p><div className="flex items-baseline gap-2"><p className="text-3xl font-bold">New</p><p className="text-amber-100 text-sm">No reviews yet</p></div></div></CardContent></Card>
+          
+          <Card className="bg-slate-900 border-slate-800 shadow-sm rounded-2xl">
+            <CardContent className="p-5 flex flex-col justify-center">
+              <p className="text-sm font-medium text-slate-400 mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Completed</p>
+              <p className="text-2xl font-bold text-white">{completedJobs.length} Jobs</p>
+            </CardContent>
+          </Card>
+          
+          {/* UPDATED: DYNAMIC RATING CARD */}
+          <Card className="border-none shadow-sm rounded-2xl col-span-2 md:col-span-2 bg-gradient-to-br from-amber-600 to-orange-600 text-white relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/20 blur-2xl rounded-full"></div>
+            <CardContent className="p-5 flex items-center justify-between h-full relative z-10">
+              <div>
+                <p className="text-amber-100 font-medium mb-1 flex items-center gap-1.5"><Star className="w-4 h-4 fill-amber-100" /> Current Rating</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-bold">{proRating.count > 0 ? proRating.average.toFixed(1) : 'New'}</p>
+                  <p className="text-amber-100 text-sm">
+                    {proRating.count > 0 ? `${proRating.count} ${proRating.count === 1 ? 'review' : 'reviews'}` : 'No reviews yet'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
         </div>
 
         <div className="space-y-6">
@@ -301,17 +350,28 @@ export default function ProfessionalDashboard() {
               {scheduledJobs.length === 0 ? (<div className="text-center p-12 border border-dashed border-slate-800 rounded-2xl text-slate-500"><p>You have no upcoming scheduled jobs.</p></div>) : (
                 scheduledJobs.map((job) => (
                   <Card key={job.id} className="border-slate-800 bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative hover:border-slate-700 transition-colors">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500"></div>
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
                     <CardContent className="p-5 sm:p-6 pl-6 sm:pl-8">
                       <div className="flex flex-col sm:flex-row justify-between gap-4 sm:items-center">
                         <div>
-                          <div className="flex items-center gap-2 mb-1"><Badge variant="secondary" className="bg-green-500/10 text-green-500 border border-green-500/20 font-bold">Upcoming</Badge><span className="text-sm font-semibold text-slate-400 flex items-center gap-1"><CalendarDays className="w-4 h-4"/> {job.scheduled_time}</span></div>
+                          <div className="flex items-center gap-2 mb-1"><Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold">Upcoming</Badge><span className="text-sm font-semibold text-slate-400 flex items-center gap-1"><CalendarDays className="w-4 h-4"/> {job.scheduled_time}</span></div>
                           <h3 className="font-bold text-lg text-white mt-2">{job.service_type}</h3><p className="text-slate-400 text-sm mt-1 flex items-center gap-1"><MapPin className="w-4 h-4"/> {job.address}</p>
                         </div>
-                        <div className="flex items-center gap-4 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                          <Avatar className="h-10 w-10 border border-slate-700 shadow-sm"><AvatarFallback className="bg-amber-500/10 text-amber-500">{job.customer_name[0]}</AvatarFallback></Avatar>
-                          <div><p className="text-xs text-slate-500 font-medium">Customer</p><p className="text-sm font-bold text-white">{job.customer_name}</p></div>
-                          <Button onClick={() => setActiveChat(job)} variant="outline" size="sm" className="ml-2 bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white h-8"><MessageSquare className="w-3.5 h-3.5 mr-1.5" /> Message</Button>
+                        <div className="flex flex-col sm:items-end gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                          <div className="flex items-center gap-3 w-full">
+                            <Avatar className="h-10 w-10 border border-slate-700 shadow-sm"><AvatarFallback className="bg-amber-500/10 text-amber-500">{job.customer_name[0]}</AvatarFallback></Avatar>
+                            <div><p className="text-xs text-slate-500 font-medium">Customer</p><p className="text-sm font-bold text-white">{job.customer_name}</p></div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-1 w-full justify-end">
+                            <Button onClick={() => setActiveChat(job)} variant="outline" size="sm" className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white h-9 px-3">
+                              <MessageSquare className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Message</span>
+                            </Button>
+                            <Button onClick={() => updateJobStatus(job, 'completed')} size="sm" className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold h-9 px-4 shadow-sm">
+                              <CheckCircle2 className="w-4 h-4 mr-1.5" /> Complete
+                            </Button>
+                          </div>
+
                         </div>
                       </div>
                     </CardContent>

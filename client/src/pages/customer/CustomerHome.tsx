@@ -50,6 +50,12 @@ export default function CustomerHome() {
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // REVIEW STATES
+  const [reviewBooking, setReviewBooking] = useState<any | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
   useEffect(() => {
     let realtimeSubscription: any;
     const fetchInitialData = async () => {
@@ -72,7 +78,6 @@ export default function CustomerHome() {
       fetchProfessionals();
       fetchMyBookings(user.id);
 
-      // FIX: Removed "payload =>" and replaced with "() =>"
       realtimeSubscription = supabase.channel(`bookings_customer_${Date.now()}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `customer_id=eq.${user.id}` }, () => {
           fetchMyBookings(user.id); 
@@ -98,9 +103,18 @@ export default function CustomerHome() {
 
   const scrollToBottom = () => setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
+  // --- UPDATED: Fetching Ratings and Completed Jobs! ---
   const fetchProfessionals = async () => {
-    const { data, error } = await supabase.from('professionals').select('*');
-    if (!error && data) setPros(data);
+    const { data, error } = await supabase.from('professionals').select('*, reviews(rating), bookings(status)');
+    if (!error && data) {
+      const enrichedPros = data.map((pro: any) => {
+        const reviews = pro.reviews || [];
+        const avgRating = reviews.length > 0 ? (reviews.reduce((acc: any, curr: any) => acc + curr.rating, 0) / reviews.length).toFixed(1) : 'New';
+        const completedJobs = (pro.bookings || []).filter((b: any) => b.status === 'completed').length;
+        return { ...pro, avgRating, reviewCount: reviews.length, completedJobs };
+      });
+      setPros(enrichedPros);
+    }
   };
 
   const fetchMyBookings = async (customerId: string) => {
@@ -187,6 +201,29 @@ export default function CustomerHome() {
     }
   };
 
+  const submitReview = async () => {
+    if (!reviewBooking || !userData) return;
+    setIsSubmittingReview(true);
+    
+    const { error } = await supabase.from('reviews').insert([{
+      booking_id: reviewBooking.id,
+      customer_id: userData.id,
+      professional_id: reviewBooking.professional_id,
+      rating: reviewRating,
+      comment: reviewComment
+    }]);
+
+    setIsSubmittingReview(false);
+
+    if (error) {
+      alert("Failed to submit review: " + error.message);
+    } else {
+      setReviewBooking(null);
+      alert("Thank you for reviewing your Professional!");
+      fetchProfessionals(); // Manually refresh pros to instantly show the updated rating!
+    }
+  };
+
   const requestLocation = () => setLocationEnabled(true);
   const firstName = userData?.name ? userData.name.split(' ')[0] : 'there';
   
@@ -246,6 +283,44 @@ export default function CustomerHome() {
               <Button onClick={executeCancelRequest} className="w-full h-12 text-base font-bold bg-red-600 hover:bg-red-700 text-white transition-all active:scale-95">Yes, Cancel Request</Button>
               <Button onClick={() => setCancelBookingId(null)} variant="outline" className="w-full h-12 text-base font-semibold border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">No, Keep It</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {reviewBooking && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-300 relative text-center">
+            <button onClick={() => setReviewBooking(null)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"><X className="h-5 w-5" /></button>
+            
+            <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Star className="w-8 h-8 text-amber-500 fill-amber-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Rate your Pro</h2>
+            <p className="text-slate-500 text-sm mb-6">How was your service with {reviewBooking.professional?.full_name?.split(' ')[0]}?</p>
+            
+            <div className="flex justify-center gap-2 mb-6">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star 
+                  key={star} 
+                  onClick={() => setReviewRating(star)} 
+                  className={`w-10 h-10 cursor-pointer transition-transform hover:scale-110 ${reviewRating >= star ? 'text-amber-500 fill-amber-500' : 'text-slate-200 fill-slate-200'}`} 
+                />
+              ))}
+            </div>
+
+            <div className="mb-6 text-left">
+              <Label className="text-slate-700 font-medium">Leave a comment (Optional)</Label>
+              <textarea 
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="They did a great job!" 
+                className="w-full mt-2 min-h-[80px] p-3 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm resize-none"
+              />
+            </div>
+
+            <Button onClick={submitReview} disabled={isSubmittingReview} className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-600 text-slate-900 transition-all active:scale-95 shadow-sm">
+              {isSubmittingReview ? "Submitting..." : "Submit Review"}
+            </Button>
           </div>
         </div>
       )}
@@ -380,11 +455,34 @@ export default function CustomerHome() {
                       <div className="absolute top-4 right-4 flex items-center gap-1.5">{pro.is_online ? <Badge className="bg-green-100 text-green-700 border-none shadow-none font-bold text-xs"><span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" /> Online</Badge> : <Badge variant="outline" className="text-slate-400 border-slate-200 font-medium text-xs">Offline</Badge>}</div>
                       <CardContent className="p-6 space-y-4 pt-10">
                         <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-4"><Avatar className="h-14 w-14 border border-slate-100 shadow-sm"><AvatarFallback className="bg-blue-50 text-blue-700 font-bold">{pro.full_name[0]}</AvatarFallback></Avatar><div><h3 className="font-bold text-lg leading-tight flex items-center gap-1 text-slate-900">{pro.full_name} {pro.verified && <ShieldCheck className="h-4 w-4 text-blue-600" />}</h3><p className="text-slate-500 text-sm truncate max-w-[150px]">{pro.category}</p></div></div>
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-14 w-14 border border-slate-100 shadow-sm"><AvatarFallback className="bg-blue-50 text-blue-700 font-bold">{pro.full_name[0]}</AvatarFallback></Avatar>
+                            <div>
+                              <h3 className="font-bold text-lg leading-tight flex items-center gap-1 text-slate-900">{pro.full_name} {pro.verified && <ShieldCheck className="h-4 w-4 text-blue-600" />}</h3>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-slate-500 text-sm truncate max-w-[120px]">{pro.category}</p>
+                                {pro.completedJobs > 0 && (
+                                  <>
+                                    <span className="text-slate-300">•</span>
+                                    <p className="text-slate-500 text-xs font-medium flex items-center gap-1">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-blue-500"/> {pro.completedJobs} {pro.completedJobs === 1 ? 'job' : 'jobs'}
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-1 font-medium text-slate-700 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg"><IndianRupee className="h-3.5 w-3.5 text-slate-400" /> {pro.hourly_rate || 'N/A'}/hr</div>
-                          <div className="flex items-center gap-1 font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md"><Star className="h-4 w-4 fill-amber-500 text-amber-500" /> 4.9 <span className="text-amber-700/60 font-normal">(New)</span></div>
+                          
+                          {/* UPDATED RATING CHIP */}
+                          <div className="flex items-center gap-1 font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md">
+                            <Star className={`h-4 w-4 ${pro.reviewCount > 0 ? 'fill-amber-500 text-amber-500' : 'fill-amber-200 text-amber-400'}`} /> 
+                            {pro.avgRating} 
+                            {pro.reviewCount > 0 && <span className="text-amber-700/60 font-normal">({pro.reviewCount})</span>}
+                          </div>
+
                         </div>
                         <Button onClick={() => setSelectedPro(pro)} className="w-full bg-slate-900 hover:bg-blue-600 text-white font-semibold transition-all active:scale-95 h-11 rounded-xl shadow-sm">Book Now</Button>
                       </CardContent>
@@ -410,11 +508,12 @@ export default function CustomerHome() {
                     case 'pending': statusBadge = <Badge className="bg-amber-100 text-amber-700 border-none shadow-none font-bold"><Clock className="w-3.5 h-3.5 mr-1" /> Pending Pro Approval</Badge>; break;
                     case 'accepted': statusBadge = <Badge className="bg-green-100 text-green-700 border-none shadow-none font-bold"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Accepted! Pro is scheduled</Badge>; break;
                     case 'declined': statusBadge = <Badge className="bg-red-100 text-red-700 border-none shadow-none font-bold"><X className="w-3.5 h-3.5 mr-1" /> Declined by Pro</Badge>; break;
+                    case 'completed': statusBadge = <Badge className="bg-blue-100 text-blue-700 border-none shadow-none font-bold"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Job Completed</Badge>; break;
                     default: statusBadge = <Badge variant="outline">{booking.status}</Badge>;
                   }
                   return (
                     <Card key={booking.id} className="border-slate-200 shadow-sm bg-white rounded-2xl overflow-hidden">
-                      <div className={`w-full h-1 ${booking.status === 'accepted' ? 'bg-green-500' : booking.status === 'pending' ? 'bg-amber-400' : 'bg-red-500'}`}></div>
+                      <div className={`w-full h-1 ${booking.status === 'accepted' ? 'bg-green-500' : booking.status === 'pending' ? 'bg-amber-400' : booking.status === 'completed' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
                       <CardContent className="p-5 sm:p-6">
                         <div className="flex flex-col sm:flex-row justify-between gap-4">
                           <div>
@@ -435,6 +534,12 @@ export default function CustomerHome() {
                             {booking.status === 'pending' && (
                               <Button onClick={() => setCancelBookingId(booking.id)} variant="outline" className="w-full mt-3 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold h-9 shadow-none text-sm transition-colors">
                                 Cancel Request
+                              </Button>
+                            )}
+
+                            {booking.status === 'completed' && (
+                              <Button onClick={() => { setReviewBooking(booking); setReviewRating(5); setReviewComment(''); }} className="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold h-9 shadow-sm text-sm transition-colors">
+                                <Star className="w-3.5 h-3.5 mr-1.5 fill-current" /> Rate Service
                               </Button>
                             )}
                           </div>
