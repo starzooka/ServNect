@@ -8,22 +8,21 @@ import CustomerSignIn from './pages/auth/SignIn';
 import CustomerSignUp from './pages/auth/SignUp';
 import ResetPassword from './pages/auth/ResetPassword';
 
-// --- SHARED DASHBOARD PAGES ---
-import AccountSettings from './pages/shared/AccountSettings';
-
 // --- CUSTOMER PAGES ---
 import CustomerHome from './pages/customer/CustomerHome';
+import CustomerSettings from './pages/customer/CustomerSettings'; // <-- NEW
 
 // --- PROFESSIONAL PAGES ---
 import ProfessionalLanding from './pages/professional/ProfessionalLanding';
 import ProfessionalDashboard from './pages/professional/ProfessionalDashboard';
 import ProOnboarding from './pages/professional/ProOnboarding';
+import ProSettings from './pages/professional/ProSettings'; // <-- NEW
 
 // --- ADMIN PAGES ---
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import UserManagement
- from './pages/admin/UserManagement';
+import UserManagement from './pages/admin/UserManagement';
+
 export default function App() {
   const host = window.location.hostname;
   const isProDomain = host.startsWith('pro.');
@@ -38,13 +37,16 @@ export default function App() {
           {/* Sub-page for /admin/users */}
           <Route path="users" element={<UserManagement />} /> 
         </Route>
+
         {/* 2. DOMAIN-SPECIFIC ROUTES */}
         {isProDomain ? (
           <>
             <Route path="/" element={<ProfessionalLanding />} />
             <Route path="/dashboard" element={<ProfessionalDashboard />} />
             <Route path="/onboarding" element={<ProOnboarding />} />
-            <Route path="/settings" element={<AccountSettings />} />
+            
+            {/* Using the new Pro-specific settings page */}
+            <Route path="/settings" element={<ProSettings />} />
 
             <Route path="/signup" element={<CustomerSignUp />} />
             <Route path="/login" element={<CustomerSignIn />} />
@@ -59,7 +61,9 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             
             <Route path="/home" element={<CustomerHome />} />
-            <Route path="/settings" element={<AccountSettings />} />
+            
+            {/* Using the new Customer-specific settings page */}
+            <Route path="/settings" element={<CustomerSettings />} />
           </>
         )}
       </Routes>

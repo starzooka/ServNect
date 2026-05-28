@@ -6,10 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, AlertCircle, Search, X } from "lucide-react";
+import { MapPin, AlertCircle, Search, X, Plus } from "lucide-react";
 
-const SUGGESTED_CATEGORIES = ["AC Service & Repair", "Appliance Repair", "Electrical Engineer", "Electrician", "Deep Cleaning", "Plumbing", "Carpentry"];
-const RADIUS_OPTIONS = ["5 km", "10 km", "20 km", "Citywide"];
+// Curated list of strictly At-Home / Doorstep services
+const POPULAR_CATEGORIES = [
+  "AC Service & Repair", "Plumbing", "Electrician", "Carpentry", 
+  "Appliance Repair", "Deep Cleaning", "Mobile Car Wash", "Pest Control",
+  "At-Home Salon", "Massage Therapy", "Personal Trainer", "Yoga Instructor",
+  "Furniture Assembly", "Home Tech Support", "Dog Walking", "Home Tutor"
+];
 
 export default function ProOnboarding() {
   const navigate = useNavigate();
@@ -22,13 +27,23 @@ export default function ProOnboarding() {
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [categoryInput, setCategoryInput] = useState('');
+  
+  // City Input States
+  const [cityInput, setCityInput] = useState('');
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  
+  // State to hold all cities from the public JSON
+  const [allApiCities, setAllApiCities] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     categories: [] as string[],
-    experience: '', rate: '', bio: '', city: '', radius: '10 km'
+    experience: '', 
+    bio: '', 
+    cities: [] as string[]
   });
 
   useEffect(() => {
+    // 1. Check Authentication
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -43,30 +58,82 @@ export default function ProOnboarding() {
       }
     };
     checkAuth();
+
+    // 2. Fetch all Indian cities from public open-source JSON (Zero API Keys needed!)
+    const fetchCities = async () => {
+      try {
+        const response = await fetch("https://raw.githubusercontent.com/nshntarora/Indian-Cities-JSON/master/cities.json");
+
+        if (response.ok) {
+          const data = await response.json();
+          // Extract just the city names and remove duplicates using Set
+          const cityNames = Array.from(new Set(data.map((c: any) => c.name))) as string[];
+          setAllApiCities(cityNames);
+        } else {
+          console.error("Failed to load cities list.");
+        }
+      } catch (error) {
+        console.error("Failed to fetch public cities JSON", error);
+      }
+    };
+    
+    fetchCities();
   }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  const setRadius = (rad: string) => setFormData({ ...formData, radius: rad });
 
-  const filteredCategories = SUGGESTED_CATEGORIES.filter(c => c.toLowerCase().includes(categoryInput.toLowerCase()) && !formData.categories.includes(c));
+  // --- Category Logic ---
+  const availablePopularCats = POPULAR_CATEGORIES.filter(c => !formData.categories.includes(c));
+  const filteredSuggestions = availablePopularCats.filter(c => c.toLowerCase().includes(categoryInput.toLowerCase()));
 
   const addCategory = (cat: string) => {
     const trimmed = cat.trim();
-    if (trimmed && !formData.categories.includes(trimmed)) setFormData(prev => ({ ...prev, categories: [...prev.categories, trimmed] }));
+    if (trimmed && !formData.categories.includes(trimmed)) {
+      setFormData(prev => ({ ...prev, categories: [...prev.categories, trimmed] }));
+    }
     setCategoryInput('');
     setShowSuggestions(false);
   };
-  const removeCategory = (catToRemove: string) => setFormData(prev => ({ ...prev, categories: prev.categories.filter(c => c !== catToRemove) }));
+  
+  const removeCategory = (catToRemove: string) => {
+    setFormData(prev => ({ ...prev, categories: prev.categories.filter(c => c !== catToRemove) }));
+  };
+
+  // --- City Logic (Powered by Public JSON) ---
+  // Filter the massive list locally and limit to 15 results for UI performance
+  const filteredCitySuggestions = allApiCities
+    .filter(c => c.toLowerCase().includes(cityInput.toLowerCase()) && !formData.cities.includes(c))
+    .slice(0, 15);
+
+  const addCity = (cityToAdd: string = cityInput) => {
+    const trimmed = cityToAdd.trim();
+    if (trimmed && !formData.cities.includes(trimmed)) {
+      setFormData(prev => ({ ...prev, cities: [...prev.cities, trimmed] }));
+    }
+    setCityInput('');
+    setShowCitySuggestions(false);
+  };
+
+  const removeCity = (cityToRemove: string) => {
+    setFormData(prev => ({ ...prev, cities: prev.cities.filter(c => c !== cityToRemove) }));
+  };
 
   const handleNextStep = () => {
     setErrorMsg(null);
-    if (step === 1 && (formData.categories.length === 0 || !formData.rate)) return setErrorMsg("Please add at least one service and your hourly rate.");
+    if (step === 1 && formData.categories.length === 0) {
+      return setErrorMsg("Please add at least one service.");
+    }
     setStep(2);
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
+    
+    if (formData.cities.length === 0) {
+      return setErrorMsg("Please add at least one operating city.");
+    }
+
     setIsLoading(true);
     setErrorMsg(null);
 
@@ -78,10 +145,8 @@ export default function ProOnboarding() {
         phone: authData.phone,
         category: formData.categories.join(', '),
         experience: formData.experience, 
-        hourly_rate: formData.rate, 
         bio: formData.bio, 
-        city: formData.city, 
-        service_radius: formData.radius
+        city: formData.cities.join(', ') // Saved as comma-separated string
       });
 
       if (error) throw error;
@@ -109,12 +174,11 @@ export default function ProOnboarding() {
           Log out
         </button>
 
-        {/* EXPLICIT OVERFLOW-VISIBLE OVERRIDE */}
         <Card className="bg-slate-900/95 border-slate-800 shadow-xl shadow-amber-900/10 backdrop-blur-xl mt-8 overflow-visible">
           <CardHeader className="space-y-2 text-center pb-6">
             <CardTitle className="text-2xl font-bold text-white">Complete Your Account</CardTitle>
             <CardDescription className="text-slate-400">
-              {step === 1 ? "Step 1 of 2: Your Business Details" : "Step 2 of 2: Your Service Area"}
+              {step === 1 ? "Step 1 of 2: Your Business Details" : "Step 2 of 2: Your Operating Locations"}
             </CardDescription>
           </CardHeader>
           
@@ -131,14 +195,14 @@ export default function ProOnboarding() {
               {step === 1 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                   <div className="space-y-3 relative overflow-visible">
-                    <Label className="font-medium text-slate-300">Service Categories</Label>
+                    <Label className="font-medium text-slate-300">What services do you provide?</Label>
                     
                     {formData.categories.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {formData.categories.map(cat => (
-                          <Badge key={cat} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500/10 text-amber-500 border-amber-500/20">
+                          <Badge key={cat} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-50 text-slate-950 border-amber-500">
                             {cat} 
-                            <button type="button" onClick={() => removeCategory(cat)} className="hover:text-red-400 transition-colors focus:outline-none ml-1">
+                            <button type="button" onClick={() => removeCategory(cat)} className="hover:text-red-900 transition-colors focus:outline-none ml-1">
                               <X className="w-3.5 h-3.5 cursor-pointer" />
                             </button>
                           </Badge>
@@ -152,30 +216,42 @@ export default function ProOnboarding() {
                         value={categoryInput} onChange={(e) => { setCategoryInput(e.target.value); setShowSuggestions(true); }}
                         onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(categoryInput); } }}
-                        placeholder="Type a service and press Enter..." autoComplete="off"
+                        placeholder="Type a custom service or pick below..." autoComplete="new-category"
                         className="pl-10 h-11 pr-24 bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500" 
                       />
                       <Button type="button" size="sm" onClick={() => addCategory(categoryInput)} className="absolute right-1.5 h-8 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950">Add</Button>
                     </div>
 
-                    {showSuggestions && categoryInput && filteredCategories.length > 0 && (
+                    {showSuggestions && categoryInput && filteredSuggestions.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-900 border-slate-800">
-                        {filteredCategories.map(cat => (
+                        {filteredSuggestions.map(cat => (
                           <div key={cat} onClick={() => addCategory(cat)} className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-800 hover:text-white">{cat}</div>
                         ))}
                       </div>
                     )}
+
+                    {availablePopularCats.length > 0 && !categoryInput && (
+                      <div className="pt-3">
+                        <Label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Popular Services</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {availablePopularCats.slice(0, 10).map(cat => (
+                            <button 
+                              key={cat} 
+                              type="button" 
+                              onClick={() => addCategory(cat)} 
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors bg-slate-950 border-slate-800 text-slate-400 hover:border-amber-500/50 hover:text-amber-500"
+                            >
+                              <Plus className="w-3 h-3" /> {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-medium text-slate-300">Experience</Label>
-                      <Input name="experience" value={formData.experience} onChange={handleChange} placeholder="e.g. 5 Years" className="h-11 bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-medium text-slate-300">Hourly Rate (₹)</Label>
-                      <Input name="rate" type="number" value={formData.rate} onChange={handleChange} placeholder="e.g. 500" required className="h-11 bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500" />
-                    </div>
+                  <div className="space-y-2">
+                    <Label className="font-medium text-slate-300">Experience</Label>
+                    <Input name="experience" value={formData.experience} onChange={handleChange} placeholder="e.g. 5 Years" className="h-11 bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500" />
                   </div>
                 </div>
               )}
@@ -183,22 +259,52 @@ export default function ProOnboarding() {
               {/* --- STEP 2: LOCATION --- */}
               {step === 2 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                  <div className="space-y-2">
-                    <Label className="font-medium text-slate-300">Base City / Region</Label>
+                  
+                  <div className="space-y-3 relative overflow-visible">
+                    <Label className="font-medium text-slate-300">Which cities do you operate in?</Label>
+                    
+                    {formData.cities.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {formData.cities.map(city => (
+                          <Badge key={city} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500 text-slate-950 border-amber-500">
+                            {city} 
+                            <button type="button" onClick={() => removeCity(city)} className="hover:text-red-900 transition-colors focus:outline-none ml-1">
+                              <X className="w-3.5 h-3.5 cursor-pointer" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="relative flex items-center">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                      <Input name="city" value={formData.city} onChange={handleChange} placeholder="e.g. Mumbai" required className="pl-10 h-11 bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500" />
+                      <Input 
+                        value={cityInput} 
+                        onChange={(e) => { setCityInput(e.target.value); setShowCitySuggestions(true); }}
+                        onFocus={() => setShowCitySuggestions(true)} 
+                        onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCity(cityInput); } }}
+                        placeholder="Type city name..." 
+                        autoComplete="new-city-search" 
+                        className="pl-10 h-11 pr-24 bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500" 
+                      />
+                      <Button type="button" size="sm" onClick={() => addCity(cityInput)} className="absolute right-1.5 h-8 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950">Add</Button>
                     </div>
-                  </div>
-                  <div className="space-y-3">
-                    <Label className="font-medium text-slate-300">Service Radius</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {RADIUS_OPTIONS.map(rad => (
-                        <button key={rad} type="button" onClick={() => setRadius(rad)} className={`px-3 py-3 rounded-xl text-sm font-medium border transition-all ${formData.radius === rad ? 'bg-amber-500/10 border-amber-500 text-amber-500 shadow-sm' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}`}>
-                          {rad}
-                        </button>
-                      ))}
-                    </div>
+
+                    {/* KEYLESS PUBLIC JSON CITY DROPDOWN */}
+                    {showCitySuggestions && cityInput && filteredCitySuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-900 border-slate-800">
+                        {filteredCitySuggestions.map(city => (
+                          <div 
+                            key={city} 
+                            onClick={() => addCity(city)} 
+                            className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-800 hover:text-white"
+                          >
+                            {city}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

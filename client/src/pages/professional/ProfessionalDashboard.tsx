@@ -2,35 +2,34 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { 
-  Wrench, Settings, LogOut, ShieldAlert, MapPin, Clock, CheckCircle2, 
-  TrendingUp, Star, CalendarDays, BellRing, X, Send, MessageSquare 
-} from "lucide-react";
+import { Wrench, Settings, LogOut, CheckCircle2, Clock, X, Send } from "lucide-react";
+
+// --- IMPORT OUR NEW COMPONENTS ---
+import ProStatCards from '@/components/professional/ProStatCards';
+import RequestsTab from '@/components/professional/RequestsTab';
+import ScheduleTab from '@/components/professional/ScheduleTab';
 
 export default function ProfessionalDashboard() {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState<{id: string, name: string, email: string, verified: boolean} | null>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   
   const [isOnline, setIsOnline] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
-  const [activeTab, setActiveTab] = useState<'requests' | 'schedule'>('requests');
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  
+  // Notice we added 'reviews' and 'portfolio' to the active tab list!
+  const [activeTab, setActiveTab] = useState<'requests' | 'schedule' | 'reviews' | 'portfolio'>('requests');
 
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [scheduledJobs, setScheduledJobs] = useState<any[]>([]);
   const [completedJobs, setCompletedJobs] = useState<any[]>([]);
-
-  // --- NEW: RATING STATE ---
+  
+  const [totalEarnings, setTotalEarnings] = useState(0);
   const [proRating, setProRating] = useState({ average: 0, count: 0 });
-
-  const [showRestoreModal, setShowRestoreModal] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [deletionDates, setDeletionDates] = useState({ scheduledAt: '', deletedOn: '' });
 
   const [activeChat, setActiveChat] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -39,40 +38,29 @@ export default function ProfessionalDashboard() {
 
   useEffect(() => {
     let realtimeSubscription: any;
-    let reviewSubscription: any; // Realtime for reviews
+    let reviewSubscription: any;
 
     const initializeDashboard = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return navigate('/login');
 
       const { data: profile } = await supabase.from('professionals').select('*').eq('id', user.id).single();
-      if (!profile || !profile.category || profile.category.trim() === '') return navigate('/onboarding', { replace: true });
+      if (!profile || !profile.category) return navigate('/onboarding', { replace: true });
 
       setUserData({ id: user.id, name: user.user_metadata?.full_name || 'Professional', email: user.email || '', verified: profile.verified || false });
       setIsOnline(profile.is_online || false);
       setIsLoadingProfile(false);
 
-      if (profile.deletion_scheduled_at) {
-        const startDate = new Date(profile.deletion_scheduled_at);
-        const startDateOriginal = new Date(startDate);
-        startDateOriginal.setDate(startDateOriginal.getDate() - 30);
-        setDeletionDates({ scheduledAt: startDateOriginal.toLocaleDateString(), deletedOn: startDate.toLocaleDateString() });
-        setShowRestoreModal(true);
-      }
-
       fetchJobs(user.id);
       fetchReviews(user.id);
       
       realtimeSubscription = supabase.channel(`bookings_pro_${Date.now()}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `professional_id=eq.${user.id}` }, () => {
-          fetchJobs(user.id); 
-        }).subscribe();
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `professional_id=eq.${user.id}` }, () => fetchJobs(user.id))
+        .subscribe();
 
-      // Subscribe to instant review updates
       reviewSubscription = supabase.channel(`reviews_pro_${Date.now()}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `professional_id=eq.${user.id}` }, () => {
-          fetchReviews(user.id); 
-        }).subscribe();
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `professional_id=eq.${user.id}` }, () => fetchReviews(user.id))
+        .subscribe();
     };
 
     initializeDashboard();
@@ -86,7 +74,7 @@ export default function ProfessionalDashboard() {
     let chatSubscription: any;
     if (activeChat) {
       fetchMessages(activeChat.id);
-      chatSubscription = supabase.channel(`chat_${activeChat.id}_${Date.now()}`)
+      chatSubscription = supabase.channel(`chat_${activeChat.id}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'booking_messages', filter: `booking_id=eq.${activeChat.id}` }, payload => {
           setMessages(prev => [...prev, payload.new]);
           scrollToBottom();
@@ -102,11 +90,16 @@ export default function ProfessionalDashboard() {
     if (!error && data) {
       setIncomingRequests(data.filter(job => job.status === 'pending'));
       setScheduledJobs(data.filter(job => job.status === 'accepted'));
-      setCompletedJobs(data.filter(job => job.status === 'completed'));
+      
+      const completed = data.filter(job => job.status === 'completed');
+      setCompletedJobs(completed);
+      
+      // SUM UP EARNINGS FOR THE HONOR SYSTEM
+      const sum = completed.reduce((total, job) => total + (Number(job.earned_amount) || 0), 0);
+      setTotalEarnings(sum);
     }
   };
 
-  // --- NEW: FETCH REVIEWS ---
   const fetchReviews = async (proId: string) => {
     const { data } = await supabase.from('reviews').select('rating').eq('professional_id', proId);
     if (data && data.length > 0) {
@@ -119,10 +112,7 @@ export default function ProfessionalDashboard() {
 
   const fetchMessages = async (bookingId: string) => {
     const { data } = await supabase.from('booking_messages').select('*').eq('booking_id', bookingId).order('created_at', { ascending: true });
-    if (data) {
-      setMessages(data);
-      scrollToBottom();
-    }
+    if (data) { setMessages(data); scrollToBottom(); }
   };
 
   const toggleOnlineStatus = async () => {
@@ -130,9 +120,8 @@ export default function ProfessionalDashboard() {
     setIsToggling(true);
     const newStatus = !isOnline;
     setIsOnline(newStatus); 
-
     const { error } = await supabase.from('professionals').update({ is_online: newStatus }).eq('id', userData.id);
-    if (error) { setIsOnline(!newStatus); alert("Could not update status."); }
+    if (error) setIsOnline(!newStatus);
     setIsToggling(false);
   };
 
@@ -141,84 +130,33 @@ export default function ProfessionalDashboard() {
     if (!error) {
       fetchJobs(userData!.id);
       if (newStatus === 'accepted') { setActiveTab('schedule'); setActiveChat(job); }
-    } else alert("Failed to update job status.");
+    }
+  };
+
+  // THE NEW HONOR SYSTEM COMPLETION HANDLER
+  const completeJobWithEarnings = async (jobId: string, earnedAmount: number) => {
+    const { error } = await supabase.from('bookings').update({ status: 'completed', earned_amount: earnedAmount }).eq('id', jobId);
+    if (!error) fetchJobs(userData!.id);
   };
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeChat || !userData) return;
-    const messageContent = newMessage;
+    const content = newMessage;
     setNewMessage(''); 
-
-    const { error } = await supabase.from('booking_messages').insert([{
-      booking_id: activeChat.id,
-      customer_id: activeChat.customer_id,
-      professional_id: userData.id,
-      sender_id: userData.id,
-      content: messageContent
-    }]);
-
-    if (error) {
-      alert("Failed to send message: " + error.message);
-      setNewMessage(messageContent); 
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
-  };
-
-  const handleRestoreAccount = async () => {
-    if (userData?.id) {
-      await supabase.from('professionals').update({ deletion_scheduled_at: null }).eq('id', userData.id);
-      setShowRestoreModal(false);
-    }
+    const { error } = await supabase.from('booking_messages').insert([{ booking_id: activeChat.id, customer_id: activeChat.customer_id, professional_id: userData.id, sender_id: userData.id, content }]);
+    if (error) setNewMessage(content); 
   };
 
   if (isLoadingProfile) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">Loading your workspace...</div>;
-  const firstName = userData?.name ? userData.name.split(' ')[0] : 'there';
-
-  if (showRestoreModal) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-2"><ShieldAlert className="w-10 h-10 text-red-500" /></div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-white">Account Pending Deletion</h2>
-            <div className="bg-slate-950 text-slate-400 p-4 rounded-xl text-sm leading-relaxed border border-slate-800 mt-4 text-left">
-              Your account is currently under deletion since <strong className="text-white">{deletionDates.scheduledAt}</strong> and will be permanently deleted on <strong className="text-white">{deletionDates.deletedOn}</strong>.
-            </div>
-          </div>
-          <div className="space-y-3 pt-4">
-            <Button onClick={handleRestoreAccount} className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 h-12 text-base font-bold">Login and cancel deletion</Button>
-            <Button onClick={handleLogout} variant="outline" className="w-full border-slate-700 text-slate-300 font-semibold h-12 hover:bg-slate-800 hover:text-white bg-transparent">Go Back</Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans text-slate-300 selection:bg-amber-500/30 selection:text-amber-200 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-950 font-sans text-slate-300 selection:bg-amber-500/30 selection:text-amber-200">
       
-      {showLogoutModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-300 relative text-center">
-            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4"><LogOut className="w-8 h-8 text-red-500 ml-1" /></div>
-            <h2 className="text-2xl font-bold text-white mb-2">Log Out?</h2>
-            <p className="text-slate-400 text-sm mb-6 leading-relaxed">Are you sure you want to log out of your partner account?</p>
-            <div className="flex flex-col gap-3">
-              <Button onClick={handleLogout} className="w-full h-12 text-base font-bold bg-red-600 hover:bg-red-700 text-white transition-all active:scale-95">Yes, Log Out</Button>
-              <Button onClick={() => setShowLogoutModal(false)} variant="outline" className="w-full h-12 text-base font-semibold border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors bg-transparent">Cancel</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* CHAT MODAL */}
       {activeChat && (
         <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full h-[85vh] shadow-2xl animate-in zoom-in-95 duration-300 relative flex flex-col overflow-hidden">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full h-[85vh] shadow-2xl flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 z-10 shrink-0">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-slate-700"><AvatarFallback className="bg-amber-500/10 text-amber-500">{activeChat.customer_name[0]}</AvatarFallback></Avatar>
@@ -228,28 +166,24 @@ export default function ProfessionalDashboard() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/50">
               <div className="text-center pb-4"><Badge variant="outline" className="text-slate-500 border-slate-800 bg-slate-900/50">Job accepted. You can now chat!</Badge></div>
-              {messages.map((msg, idx) => {
-                const isMe = msg.sender_id === userData?.id;
-                return (
-                  <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${isMe ? 'bg-amber-500 text-slate-950 rounded-br-sm' : 'bg-slate-800 text-white rounded-bl-sm border border-slate-700'}`}>
-                      {msg.content}
-                    </div>
-                  </div>
-                );
-              })}
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.sender_id === userData?.id ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${msg.sender_id === userData?.id ? 'bg-amber-500 text-slate-950 rounded-br-sm' : 'bg-slate-800 text-white rounded-bl-sm border border-slate-700'}`}>{msg.content}</div>
+                </div>
+              ))}
               <div ref={messagesEndRef} />
             </div>
             <div className="p-4 border-t border-slate-800 bg-slate-900 shrink-0">
               <form onSubmit={sendMessage} className="flex gap-2 relative">
-                <Input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="h-12 bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500 rounded-xl pr-12" />
-                <Button type="submit" disabled={!newMessage.trim()} size="icon" className="absolute right-1 top-1 h-10 w-10 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 shrink-0"><Send className="w-4 h-4" /></Button>
+                <Input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="h-12 bg-slate-950 border-slate-800 text-white rounded-xl pr-12" />
+                <Button type="submit" disabled={!newMessage.trim()} size="icon" className="absolute right-1 top-1 h-10 w-10 rounded-lg bg-amber-500 text-slate-950"><Send className="w-4 h-4" /></Button>
               </form>
             </div>
           </div>
         </div>
       )}
 
+      {/* NAVBAR */}
       <nav className="sticky top-0 w-full z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
@@ -258,128 +192,54 @@ export default function ProfessionalDashboard() {
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-11 pl-1.5 pr-4 rounded-full border border-slate-800 hover:bg-slate-900 gap-2.5 transition-all outline-none text-slate-300 hover:text-white">
-                <Avatar className="h-8 w-8 border border-slate-700"><AvatarFallback className="bg-amber-500/10 text-amber-500 font-bold text-xs">{userData?.name ? userData.name[0].toUpperCase() : 'P'}</AvatarFallback></Avatar>
-                <span className="text-sm font-semibold hidden sm:block">{userData?.name || 'Loading...'}</span>
+              <Button variant="ghost" className="h-11 pl-1.5 pr-4 rounded-full border border-slate-800 hover:bg-slate-900 gap-2.5 text-slate-300">
+                <Avatar className="h-8 w-8 border border-slate-700"><AvatarFallback className="bg-amber-500/10 text-amber-500 font-bold text-xs">{userData?.name[0].toUpperCase()}</AvatarFallback></Avatar>
+                <span className="text-sm font-semibold hidden sm:block">{userData?.name}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 p-2 rounded-2xl border-slate-800 shadow-xl bg-slate-900/95 backdrop-blur-xl mt-1 text-slate-300" align="end" forceMount>
-              <DropdownMenuItem onClick={() => navigate('/settings')} className="group cursor-pointer font-medium p-3 rounded-xl focus:bg-slate-800 focus:text-amber-500 transition-colors"><Settings className="mr-3 h-4 w-4 text-slate-500 group-focus:text-amber-500 transition-colors" /> Account Settings</DropdownMenuItem>
+            <DropdownMenuContent className="w-56 p-2 rounded-2xl border-slate-800 bg-slate-900/95 backdrop-blur-xl mt-1" align="end">
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer font-medium p-3 rounded-xl focus:bg-slate-800 focus:text-amber-500"><Settings className="mr-3 h-4 w-4" /> Account Settings</DropdownMenuItem>
               <div className="h-px bg-slate-800 my-1 mx-2"></div>
-              <DropdownMenuItem onClick={() => setShowLogoutModal(true)} className="group cursor-pointer font-medium p-3 rounded-xl focus:bg-red-500/10 focus:text-red-500 transition-colors"><LogOut className="mr-3 h-4 w-4 text-red-500 transition-colors" /> Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => supabase.auth.signOut().then(() => navigate('/login'))} className="cursor-pointer font-medium p-3 rounded-xl focus:bg-red-500/10 focus:text-red-500"><LogOut className="mr-3 h-4 w-4" /> Log out</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-in fade-in duration-500">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-sm">
+      {/* MAIN LAYOUT */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-slate-900 p-6 rounded-3xl border border-slate-800">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Welcome back, {firstName}!</h1>
-            <p className="text-slate-400 mt-1 flex items-center gap-2">{userData?.verified ? <><CheckCircle2 className="w-4 h-4 text-green-500" /> Verified Professional</> : <><Clock className="w-4 h-4 text-amber-500" /> Profile pending verification</>}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Welcome back, {userData?.name.split(' ')[0]}!</h1>
+            <p className="text-slate-400 mt-1 flex items-center gap-2">{userData?.verified ? <><CheckCircle2 className="w-4 h-4 text-green-500" /> Verified</> : <><Clock className="w-4 h-4 text-amber-500" /> Pending verification</>}</p>
           </div>
-          <div className="flex items-center gap-4 bg-slate-950 p-2 pl-4 rounded-2xl border border-slate-800 shrink-0">
-            <div className="flex flex-col"><span className="text-sm font-bold text-white">{isOnline ? 'Online' : 'Offline'}</span><span className="text-xs text-slate-500 font-medium">{isOnline ? 'Accepting jobs' : 'Not visible'}</span></div>
-            <button onClick={toggleOnlineStatus} disabled={isToggling} className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${isOnline ? 'bg-green-500' : 'bg-slate-700'}`}>
-              <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isOnline ? 'translate-x-3' : '-translate-x-3'}`} />
+          <div className="flex items-center gap-4 bg-slate-950 p-2 pl-4 rounded-2xl border border-slate-800">
+            <div className="flex flex-col"><span className="text-sm font-bold text-white">{isOnline ? 'Online' : 'Offline'}</span><span className="text-xs text-slate-500">{isOnline ? 'Accepting jobs' : 'Not visible'}</span></div>
+            <button onClick={toggleOnlineStatus} disabled={isToggling} className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${isOnline ? 'bg-green-500' : 'bg-slate-700'}`}>
+              <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition duration-200 ${isOnline ? 'translate-x-7' : 'translate-x-1'}`} />
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-slate-900 border-slate-800 shadow-sm rounded-2xl"><CardContent className="p-5 flex flex-col justify-center"><p className="text-sm font-medium text-slate-400 mb-1 flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> This Week</p><p className="text-2xl font-bold text-white">₹0</p></CardContent></Card>
-          
-          <Card className="bg-slate-900 border-slate-800 shadow-sm rounded-2xl">
-            <CardContent className="p-5 flex flex-col justify-center">
-              <p className="text-sm font-medium text-slate-400 mb-1 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Completed</p>
-              <p className="text-2xl font-bold text-white">{completedJobs.length} Jobs</p>
-            </CardContent>
-          </Card>
-          
-          {/* UPDATED: DYNAMIC RATING CARD */}
-          <Card className="border-none shadow-sm rounded-2xl col-span-2 md:col-span-2 bg-gradient-to-br from-amber-600 to-orange-600 text-white relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/20 blur-2xl rounded-full"></div>
-            <CardContent className="p-5 flex items-center justify-between h-full relative z-10">
-              <div>
-                <p className="text-amber-100 font-medium mb-1 flex items-center gap-1.5"><Star className="w-4 h-4 fill-amber-100" /> Current Rating</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-bold">{proRating.count > 0 ? proRating.average.toFixed(1) : 'New'}</p>
-                  <p className="text-amber-100 text-sm">
-                    {proRating.count > 0 ? `${proRating.count} ${proRating.count === 1 ? 'review' : 'reviews'}` : 'No reviews yet'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* TOP STATS COMPONENT */}
+        <ProStatCards earnings={totalEarnings} completedCount={completedJobs.length} proRating={proRating} />
 
-        </div>
-
+        {/* TAB NAVIGATION */}
         <div className="space-y-6">
-          <div className="flex gap-2 p-1 bg-slate-900 rounded-xl w-fit border border-slate-800">
-            <button onClick={() => setActiveTab('requests')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'requests' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>New Requests {incomingRequests.length > 0 && <Badge variant="secondary" className={`${activeTab === 'requests' ? 'bg-amber-500/20 text-amber-500 border-none' : 'bg-slate-800 text-slate-500 border-none'}`}>{incomingRequests.length}</Badge>}</button>
-            <button onClick={() => setActiveTab('schedule')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'schedule' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>Upcoming Schedule{scheduledJobs.length > 0 && <Badge variant="secondary" className={`${activeTab === 'schedule' ? 'bg-amber-500/20 text-amber-500 border-none' : 'bg-slate-800 text-slate-500 border-none'}`}>{scheduledJobs.length}</Badge>}</button>
+          <div className="flex gap-2 p-1 bg-slate-900 rounded-xl w-fit border border-slate-800 overflow-x-auto whitespace-nowrap">
+            <button onClick={() => setActiveTab('requests')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'requests' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Requests {incomingRequests.length > 0 && <Badge className="bg-amber-500/20 text-amber-500 border-none">{incomingRequests.length}</Badge>}</button>
+            <button onClick={() => setActiveTab('schedule')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'schedule' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Schedule {scheduledJobs.length > 0 && <Badge className="bg-amber-500/20 text-amber-500 border-none">{scheduledJobs.length}</Badge>}</button>
+            <button onClick={() => setActiveTab('reviews')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'reviews' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Reviews</button>
+            <button onClick={() => setActiveTab('portfolio')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'portfolio' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Portfolio Gallery</button>
           </div>
 
-          {activeTab === 'requests' && (
-            <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {!isOnline && (<div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl flex items-start gap-3"><BellRing className="w-5 h-5 shrink-0 mt-0.5" /><p className="text-sm font-medium">You are currently offline. Toggle your status to Online above to receive live requests from customers in your area.</p></div>)}
-              {incomingRequests.length === 0 ? (<div className="text-center p-12 border border-dashed border-slate-800 rounded-2xl text-slate-500"><p>No new requests right now.</p></div>) : (
-                incomingRequests.map((req) => (
-                  <Card key={req.id} className="border-slate-800 bg-slate-900 shadow-sm hover:border-slate-700 transition-colors rounded-2xl overflow-hidden">
-                    <div className="w-full h-1 bg-amber-500"></div>
-                    <CardContent className="p-5 sm:p-6">
-                      <div className="flex flex-col sm:flex-row justify-between gap-4">
-                        <div className="flex items-start gap-4">
-                          <Avatar className="h-12 w-12 border border-slate-700"><AvatarFallback className="bg-amber-500/10 text-amber-500">{req.customer_name[0]}</AvatarFallback></Avatar>
-                          <div><h3 className="font-bold text-lg text-white leading-tight">{req.service_type}</h3><p className="text-slate-400 text-sm font-medium mt-0.5">{req.customer_name}</p><div className="flex items-center gap-4 mt-3"><span className="text-xs font-semibold text-slate-300 flex items-center gap-1 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-md"><MapPin className="w-3.5 h-3.5"/> {req.address}</span><span className="text-xs font-semibold text-slate-300 flex items-center gap-1 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-md"><Clock className="w-3.5 h-3.5"/> {req.scheduled_time}</span></div></div>
-                        </div>
-                        <div className="flex flex-col sm:items-end gap-3 sm:gap-0 justify-between">
-                          <div className="text-left sm:text-right"><p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">Est. Budget</p><p className="text-xl font-bold text-amber-500">{req.est_budget}</p></div>
-                          <div className="flex gap-2 w-full sm:w-auto mt-2"><Button variant="outline" onClick={() => updateJobStatus(req, 'declined')} className="flex-1 sm:flex-none border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 h-10 px-4 bg-transparent">Decline</Button><Button onClick={() => updateJobStatus(req, 'accepted')} className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold h-10 px-6 shadow-sm"><MessageSquare className="w-4 h-4 mr-2" /> Accept & Chat</Button></div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'schedule' && (
-            <div className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              {scheduledJobs.length === 0 ? (<div className="text-center p-12 border border-dashed border-slate-800 rounded-2xl text-slate-500"><p>You have no upcoming scheduled jobs.</p></div>) : (
-                scheduledJobs.map((job) => (
-                  <Card key={job.id} className="border-slate-800 bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative hover:border-slate-700 transition-colors">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
-                    <CardContent className="p-5 sm:p-6 pl-6 sm:pl-8">
-                      <div className="flex flex-col sm:flex-row justify-between gap-4 sm:items-center">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1"><Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold">Upcoming</Badge><span className="text-sm font-semibold text-slate-400 flex items-center gap-1"><CalendarDays className="w-4 h-4"/> {job.scheduled_time}</span></div>
-                          <h3 className="font-bold text-lg text-white mt-2">{job.service_type}</h3><p className="text-slate-400 text-sm mt-1 flex items-center gap-1"><MapPin className="w-4 h-4"/> {job.address}</p>
-                        </div>
-                        <div className="flex flex-col sm:items-end gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                          <div className="flex items-center gap-3 w-full">
-                            <Avatar className="h-10 w-10 border border-slate-700 shadow-sm"><AvatarFallback className="bg-amber-500/10 text-amber-500">{job.customer_name[0]}</AvatarFallback></Avatar>
-                            <div><p className="text-xs text-slate-500 font-medium">Customer</p><p className="text-sm font-bold text-white">{job.customer_name}</p></div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 mt-1 w-full justify-end">
-                            <Button onClick={() => setActiveChat(job)} variant="outline" size="sm" className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white h-9 px-3">
-                              <MessageSquare className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Message</span>
-                            </Button>
-                            <Button onClick={() => updateJobStatus(job, 'completed')} size="sm" className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold h-9 px-4 shadow-sm">
-                              <CheckCircle2 className="w-4 h-4 mr-1.5" /> Complete
-                            </Button>
-                          </div>
-
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          )}
+          {/* TAB CONTENTS */}
+          {activeTab === 'requests' && <RequestsTab incomingRequests={incomingRequests} isOnline={isOnline} updateJobStatus={updateJobStatus} />}
+          {activeTab === 'schedule' && <ScheduleTab scheduledJobs={scheduledJobs} setActiveChat={setActiveChat} completeJob={completeJobWithEarnings} />}
+          {activeTab === 'reviews' && <div className="text-slate-400 p-8 text-center border border-dashed border-slate-800 rounded-2xl">Reviews component coming up next!</div>}
+          {activeTab === 'portfolio' && <div className="text-slate-400 p-8 text-center border border-dashed border-slate-800 rounded-2xl">Portfolio component coming up next!</div>}
 
         </div>
       </main>
