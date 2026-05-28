@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MapPin, Search, Star, ShieldCheck, CheckCircle2, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { MapPin, Search, Star, ShieldCheck, SlidersHorizontal, ChevronDown } from "lucide-react";
 
 const SERVICES = ["All Services", "Plumbing", "Electrician", "Carpentry", "Cleaning"];
 

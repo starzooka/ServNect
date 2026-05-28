@@ -16,7 +16,6 @@ export default function CustomerSettings() {
   const [globalMessage, setGlobalMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   // --- USER PROFILE STATE ---
-  const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
@@ -52,7 +51,6 @@ export default function CustomerSettings() {
         return;
       }
       
-      setUserId(user.id);
       setUserEmail(user.email || '');
       setUserName(user.user_metadata?.full_name || 'N/A');
       setUserRole(user.user_metadata?.role || 'customer');
