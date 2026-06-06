@@ -5,11 +5,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   ShieldCheck, Clock, Users, Briefcase,
-  ArrowRight, FileText, TrendingUp, UserCheck
+  ArrowRight, FileText, UserCheck
 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { customers, professionals, verificationRequests, refreshData } = useOutletContext<any>();
+  const { customers, professionals, verificationRequests } = useOutletContext<any>();
   const navigate = useNavigate();
 
   // Correctly derived stats
