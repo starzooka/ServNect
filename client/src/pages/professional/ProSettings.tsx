@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,10 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, ShieldAlert, KeyRound, Eye, EyeOff, CheckCircle2, 
   AlertCircle, X, User, Briefcase, MapPin, ShieldCheck, Search, UploadCloud,
-  Smartphone, QrCode, Copy, Check
+  Smartphone, QrCode, Copy, Check, FileText, Clock, CalendarDays
 } from "lucide-react";
 
-// The same category list from onboarding
 const POPULAR_CATEGORIES = [
   "AC Service & Repair", "Plumbing", "Electrician", "Carpentry", 
   "Appliance Repair", "Deep Cleaning", "Mobile Car Wash", "Pest Control",
@@ -20,32 +20,51 @@ const POPULAR_CATEGORIES = [
   "Furniture Assembly", "Home Tech Support", "Dog Walking", "Home Tutor"
 ];
 
+const libraries: ("places")[] = ['places'];
+
 export default function ProSettings() {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   
   const [activeTab, setActiveTab] = useState<'security' | 'business' | 'locations' | 'verification'>('security');
+
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string,
+    libraries,
+  });
 
   // --- USER PROFILE STATE ---
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
+  const [userPhone, setUserPhone] = useState(''); 
 
   // --- PRO PROFILE STATE ---
   const [proData, setProData] = useState({
     categories: [] as string[],
-    experience: '', bio: '', cities: [] as string[], isVerified: false
+    experience: '', 
+    bio: '', 
+    service_locations: [] as { city: string, lat: number, lng: number }[],
+    isVerified: false
   });
   
   const [categoryInput, setCategoryInput] = useState('');
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   
-  const [cityInput, setCityInput] = useState('');
-  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
-  const [allApiCities, setAllApiCities] = useState<string[]>([]); // Dynamic city list
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const [autocompleteInput, setAutocompleteInput] = useState('');
 
+  // --- VERIFICATION STATE ---
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [verificationReq, setVerificationReq] = useState<{
+    id: string;
+    status: string;
+    url: string;
+    created_at: string;
+    rejection_reason: string | null;
+  } | null>(null);
 
   // --- SECURITY STATE ---
   const [currentPassword, setCurrentPassword] = useState('');
@@ -73,28 +92,45 @@ export default function ProSettings() {
   useEffect(() => {
     const fetchInitialData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
+      if (!user) { navigate('/login'); return; }
       
       setUserId(user.id);
       setUserEmail(user.email || '');
       setUserName(user.user_metadata?.full_name || 'N/A');
 
-      // Fetch Pro Profile
       const { data: profile } = await supabase.from('professionals').select('*').eq('id', user.id).single();
       if (profile) {
         setProData({
           categories: profile.category ? profile.category.split(',').map((c:string) => c.trim()).filter(Boolean) : [],
           experience: profile.experience || '',
           bio: profile.bio || '',
-          cities: profile.city ? profile.city.split(',').map((c:string) => c.trim()).filter(Boolean) : [],
-          isVerified: profile.verified || false
+          service_locations: profile.service_locations || [], 
+          isVerified: profile.is_verified || profile.verified || false
+        });
+        const rawPhone = profile.phone || user.user_metadata?.phone || '';
+        setUserPhone(rawPhone.replace(/^\+91/, '').trim());
+      }
+
+      // Fetch latest verification request — includes rejection_reason
+      const { data: vReq } = await supabase
+        .from('verification_requests')
+        .select('id, status, document_url, created_at, rejection_reason')
+        .eq('pro_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (vReq) {
+        const { data: urlData } = supabase.storage.from('verification-docs').getPublicUrl(vReq.document_url);
+        setVerificationReq({
+          id: vReq.id,
+          status: vReq.status,
+          url: urlData.publicUrl,
+          created_at: vReq.created_at,
+          rejection_reason: vReq.rejection_reason ?? null,
         });
       }
 
-      // Fetch 2FA Status
       const { data: mfaData, error } = await supabase.auth.mfa.listFactors();
       if (!error && mfaData) {
         const verifiedTotp = mfaData.totp.find((factor: any) => factor.status === 'verified');
@@ -102,22 +138,7 @@ export default function ProSettings() {
       }
     };
     
-    // Fetch JSON Cities List for the dropdown
-    const fetchCities = async () => {
-      try {
-        const response = await fetch("https://raw.githubusercontent.com/nshntarora/Indian-Cities-JSON/master/cities.json");
-        if (response.ok) {
-          const data = await response.json();
-          const cityNames = Array.from(new Set(data.map((c: any) => c.name))) as string[];
-          setAllApiCities(cityNames);
-        }
-      } catch (error) {
-        console.error("Failed to load public cities JSON", error);
-      }
-    };
-
     fetchInitialData();
-    fetchCities();
   }, [navigate]);
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -125,48 +146,95 @@ export default function ProSettings() {
     setTimeout(() => setGlobalMessage(null), 5000);
   };
 
-  // --- PRO PROFILE UPDATE HANDLERS ---
+  const handleUpdatePersonalInfo = async () => {
+    if (!userId) return;
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(userPhone)) return showMsg('error', "Please enter a valid 10-digit Indian mobile number.");
+    const finalPhone = `+91${userPhone}`;
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase.from('professionals').update({ phone: finalPhone }).eq('id', userId);
+      if (error) throw error;
+      showMsg('success', 'Personal information updated successfully!');
+    } catch (err: any) { showMsg('error', err.message); } finally { setIsProcessing(false); }
+  };
+
   const handleUpdateBusinessProfile = async () => {
     if (!userId) return;
     if (proData.categories.length === 0) return showMsg('error', 'You must select at least one service category.');
-    
     setIsProcessing(true);
     try {
       const { error } = await supabase.from('professionals').update({
-        category: proData.categories.join(', '),
-        experience: proData.experience,
-        bio: proData.bio
+        category: proData.categories.join(', '), experience: proData.experience, bio: proData.bio
       }).eq('id', userId);
       if (error) throw error;
       showMsg('success', 'Business profile updated successfully!');
-    } catch (err: any) {
-      showMsg('error', err.message);
-    } finally { setIsProcessing(false); }
+    } catch (err: any) { showMsg('error', err.message); } finally { setIsProcessing(false); }
   };
 
   const handleUpdateLocations = async () => {
     if (!userId) return;
+    if (proData.service_locations.length === 0) return showMsg('error', 'You must add at least one operating location.');
     setIsProcessing(true);
     try {
+      const cityString = proData.service_locations.map(loc => loc.city).join(', ');
       const { error } = await supabase.from('professionals').update({
-        city: proData.cities.join(', ')
+        city: cityString, service_locations: proData.service_locations 
       }).eq('id', userId);
       if (error) throw error;
       showMsg('success', 'Service locations updated successfully!');
-    } catch (err: any) {
-      showMsg('error', err.message);
-    } finally { setIsProcessing(false); }
+    } catch (err: any) { showMsg('error', err.message); } finally { setIsProcessing(false); }
   };
 
   const handleDocumentUpload = async () => {
-    if (!uploadFile) return showMsg('error', 'Please select a document first.');
-    setIsProcessing(true);
-    setTimeout(() => {
-      showMsg('success', 'Document submitted! Our team will review it within 24 hours.');
+    if (!uploadFile || !userId) return showMsg('error', 'Please select a document first.');
+    setIsUploading(true);
+    try {
+      const fileExt = uploadFile.name.split('.').pop();
+      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('verification-docs').upload(fileName, uploadFile);
+      if (uploadError) throw uploadError;
+
+      if (verificationReq?.status === 'pending') {
+        // REPLACE: update the existing pending row instead of inserting a new one
+        const { error: dbError } = await supabase
+          .from('verification_requests')
+          .update({ document_url: fileName })
+          .eq('id', verificationReq.id);
+        if (dbError) throw dbError;
+      } else {
+        // NEW submission: insert a fresh row
+        const { error: dbError } = await supabase
+          .from('verification_requests')
+          .insert([{ pro_id: userId, document_url: fileName, status: 'pending' }]);
+        if (dbError) throw dbError;
+      }
+
+      const { data: urlData } = supabase.storage.from('verification-docs').getPublicUrl(fileName);
+      setVerificationReq({
+        id: verificationReq?.id ?? 'new-temp-id',
+        status: 'pending',
+        url: urlData.publicUrl,
+        created_at: new Date().toISOString(),
+        rejection_reason: null,
+      });
+
+      showMsg('success', 'Document submitted! It may take up to 72 hours to verify.');
       setUploadFile(null);
-      setIsProcessing(false);
-    }, 1500);
+    } catch (err: any) { showMsg('error', err.message); } finally { setIsUploading(false); }
   };
+
+  // --- CALC REJECTION COOLDOWN ---
+  let canReapply = true;
+  let daysRemaining = 0;
+  if (verificationReq?.status === 'rejected') {
+    const rejectDate = new Date(verificationReq.created_at).getTime();
+    const diffDays = (Date.now() - rejectDate) / (1000 * 3600 * 24);
+    if (diffDays < 7) {
+      canReapply = false;
+      daysRemaining = Math.ceil(7 - diffDays);
+    }
+  }
 
   // --- PRO MULTI-SELECT HELPERS ---
   const filteredCategories = POPULAR_CATEGORIES.filter(c => c.toLowerCase().includes(categoryInput.toLowerCase()) && !proData.categories.includes(c));
@@ -175,19 +243,24 @@ export default function ProSettings() {
     if (trimmed && !proData.categories.includes(trimmed)) setProData(prev => ({ ...prev, categories: [...prev.categories, trimmed] }));
     setCategoryInput(''); setShowCategorySuggestions(false);
   };
-  const removeCategory = (catToRemove: string) => {
-    setProData(prev => ({ ...prev, categories: prev.categories.filter(c => c !== catToRemove) }));
-  };
+  const removeCategory = (catToRemove: string) => setProData(prev => ({ ...prev, categories: prev.categories.filter(c => c !== catToRemove) }));
 
-  const filteredCitySuggestions = allApiCities.filter(c => c.toLowerCase().includes(cityInput.toLowerCase()) && !proData.cities.includes(c)).slice(0, 15);
-  const addCity = (city: string) => {
-    const trimmed = city.trim();
-    if (trimmed && !proData.cities.includes(trimmed)) setProData(prev => ({ ...prev, cities: [...prev.cities, trimmed] }));
-    setCityInput(''); setShowCitySuggestions(false);
+  const handlePlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      if (place.geometry && place.geometry.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        let cityName = place.name || autocompleteInput;
+        place.address_components?.forEach(c => { if (c.types.includes('locality')) cityName = c.long_name; });
+        if (!proData.service_locations.find(loc => loc.city === cityName)) {
+          setProData(prev => ({ ...prev, service_locations: [...prev.service_locations, { city: cityName, lat, lng }] }));
+        }
+        setAutocompleteInput('');
+      }
+    }
   };
-  const removeCity = (cityToRemove: string) => {
-    setProData(prev => ({ ...prev, cities: prev.cities.filter(c => c !== cityToRemove) }));
-  };
+  const removeLocation = (cityToRemove: string) => setProData(prev => ({ ...prev, service_locations: prev.service_locations.filter(loc => loc.city !== cityToRemove) }));
 
   // --- ACCOUNT SECURITY LOGIC ---
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -208,7 +281,6 @@ export default function ProSettings() {
     } catch (error: any) { showMsg('error', error.message); } finally { setIsProcessing(false); }
   };
 
-  // 2FA Enrollment
   const start2FAEnrollment = async () => {
     setIsProcessing(true);
     try {
@@ -241,7 +313,6 @@ export default function ProSettings() {
     } catch (err: any) { showMsg('error', err.message); } finally { setIsProcessing(false); }
   };
 
-  // OTP Handlers
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return; 
     const newOtp = [...otp]; newOtp[index] = value.slice(-1); setOtp(newOtp); setVerifyCode(newOtp.join(''));
@@ -259,7 +330,6 @@ export default function ProSettings() {
   };
   const copyToClipboard = () => { navigator.clipboard.writeText(totpSecret); setHasCopied(true); setTimeout(() => setHasCopied(false), 2000); };
 
-  // Deletion
   const executeAccountDeletion = async () => {
     setIsProcessing(true);
     const deletionDate = new Date(); deletionDate.setDate(deletionDate.getDate() + 30);
@@ -270,6 +340,8 @@ export default function ProSettings() {
     }
     showMsg('error', "Failed to schedule deletion."); setIsProcessing(false);
   };
+
+  if (!isLoaded) return <div className="min-h-screen pt-20 px-4 text-center text-slate-300 font-medium">Loading Workspace...</div>;
 
   return (
     <div className="min-h-screen font-sans pt-10 pb-64 px-4 bg-slate-950 text-slate-300">
@@ -349,7 +421,7 @@ export default function ProSettings() {
           </div>
         )}
 
-        {/* --- PRO TABS NAVIGATION --- */}
+        {/* --- TABS NAV --- */}
         <div className="flex overflow-x-auto gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl scrollbar-hide">
           {[
             { id: 'security', icon: KeyRound, label: 'Account & Security' },
@@ -371,9 +443,9 @@ export default function ProSettings() {
             <Card className="shadow-sm overflow-visible bg-slate-900 border-slate-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white"><User className="h-5 w-5 text-amber-500"/> Personal Information</CardTitle>
-                <CardDescription className="text-slate-400">Your core account details.</CardDescription>
+                <CardDescription className="text-slate-400">Your core account details and secure contact information.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5 max-w-md overflow-visible">
+              <CardContent className="space-y-6 max-w-md overflow-visible">
                 <div className="space-y-2">
                   <Label className="font-medium text-slate-300">Full Name</Label>
                   <Input value={userName} readOnly className="cursor-not-allowed h-11 focus-visible:ring-0 bg-slate-950 border-slate-800 text-slate-500" />
@@ -382,6 +454,22 @@ export default function ProSettings() {
                   <Label className="font-medium text-slate-300">Email Address</Label>
                   <Input value={userEmail} readOnly className="cursor-not-allowed h-11 focus-visible:ring-0 bg-slate-950 border-slate-800 text-slate-500" />
                 </div>
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <Label className="font-medium text-slate-300">Verified Contact Number</Label>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3 font-medium text-slate-400 pointer-events-none">+91</div>
+                    <Input 
+                      type="tel" maxLength={10} placeholder="98765 43210"
+                      className="pl-12 h-11 bg-slate-950 border-slate-800 text-white focus-visible:ring-amber-500 font-medium tracking-wide"
+                      value={userPhone} 
+                      onChange={(e) => setUserPhone(e.target.value.replace(/\D/g, ''))}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500">Only valid 10-digit Indian numbers are accepted.</p>
+                </div>
+                <Button onClick={handleUpdatePersonalInfo} disabled={isProcessing} className="w-full h-11 font-semibold transition-transform active:scale-95 bg-amber-500 hover:bg-amber-600 text-slate-950">
+                  {isProcessing ? "Saving..." : "Save Contact Info"}
+                </Button>
               </CardContent>
             </Card>
 
@@ -413,7 +501,7 @@ export default function ProSettings() {
                       <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 text-slate-400 hover:text-slate-500">{showConfirm ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}</button>
                     </div>
                   </div>
-                  <Button type="submit" disabled={isProcessing} className="mt-2 h-11 px-8 font-semibold transition-transform active:scale-95 bg-amber-500 hover:bg-amber-600 text-slate-950">
+                  <Button type="submit" disabled={isProcessing} className="w-full h-11 font-semibold transition-transform active:scale-95 bg-slate-800 hover:bg-slate-700 text-white">
                     {isProcessing && currentPassword ? "Updating..." : "Update Password"}
                   </Button>
                 </form>
@@ -463,7 +551,6 @@ export default function ProSettings() {
               </CardHeader>
               <CardContent className="overflow-visible">
                 <div className="space-y-6 max-w-2xl">
-                  
                   <div className="space-y-3 relative overflow-visible">
                     <Label className="font-medium text-slate-300">Services Offered</Label>
                     {proData.categories.length > 0 && (
@@ -476,30 +563,31 @@ export default function ProSettings() {
                         ))}
                       </div>
                     )}
-                    <div className="relative flex items-center">
+                    <div className="relative flex items-center w-full">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none" />
                       <Input 
-                        value={categoryInput} onChange={(e) => { setCategoryInput(e.target.value); setShowCategorySuggestions(true); }}
-                        onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
+                        value={categoryInput} 
+                        onChange={(e) => { setCategoryInput(e.target.value); setShowCategorySuggestions(true); }}
+                        onFocus={() => setShowCategorySuggestions(true)} 
+                        onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(categoryInput); } }}
-                        placeholder="Add another service..." className="pl-10 h-11 pr-24 bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-amber-500" 
+                        placeholder="Add another service..." 
+                        className="w-full pl-10 h-11 pr-24 bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-amber-500" 
                       />
                       <Button type="button" size="sm" onClick={() => addCategory(categoryInput)} className="absolute right-1.5 h-8 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950">Add</Button>
                     </div>
                     {showCategorySuggestions && categoryInput && filteredCategories.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-800 border-slate-700">
                         {filteredCategories.map(cat => (
-                          <div key={cat} onClick={() => addCategory(cat)} className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-700 hover:text-white">{cat}</div>
+                          <div key={cat} onMouseDown={() => addCategory(cat)} className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-700 hover:text-white">{cat}</div>
                         ))}
                       </div>
                     )}
                   </div>
-
                   <div className="space-y-2">
                     <Label className="font-medium text-slate-300">Years of Experience</Label>
                     <Input value={proData.experience} onChange={(e) => setProData({...proData, experience: e.target.value})} placeholder="e.g. 5 Years" className="h-11 bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-amber-500" />
                   </div>
-
                   <div className="space-y-2">
                     <Label className="font-medium text-slate-300">Professional Bio</Label>
                     <textarea 
@@ -507,7 +595,6 @@ export default function ProSettings() {
                       className="w-full min-h-[120px] p-3 rounded-xl border focus:outline-none focus:ring-2 text-sm resize-none bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus:ring-amber-500"
                     />
                   </div>
-
                   <Button onClick={handleUpdateBusinessProfile} disabled={isProcessing} className="h-11 px-8 font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950">
                     {isProcessing ? "Saving..." : "Save Business Profile"}
                   </Button>
@@ -524,48 +611,46 @@ export default function ProSettings() {
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
             <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-visible">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white"><MapPin className="h-5 w-5 text-amber-500"/> Target Cities</CardTitle>
-                <CardDescription className="text-slate-400">Select multiple cities where your services are available.</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-white"><MapPin className="h-5 w-5 text-amber-500"/> Target Neighborhoods</CardTitle>
+                <CardDescription className="text-slate-400">Search and configure your verified operating areas.</CardDescription>
               </CardHeader>
               <CardContent className="overflow-visible">
                 <div className="space-y-6 max-w-2xl">
-                  
                   <div className="space-y-3 relative overflow-visible">
-                    <Label className="font-medium text-slate-300">Active Service Cities</Label>
-                    {proData.cities.length > 0 ? (
+                    <Label className="font-medium text-slate-300">Active Service Locations</Label>
+                    {proData.service_locations.length > 0 ? (
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {proData.cities.map(city => (
-                          <Badge key={city} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500/10 text-amber-500 border-amber-500/20">
-                            {city} 
-                            <button type="button" onClick={() => removeCity(city)} className="hover:text-red-400 transition-colors focus:outline-none ml-1"><X className="w-3.5 h-3.5 cursor-pointer" /></button>
+                        {proData.service_locations.map(loc => (
+                          <Badge key={loc.city} variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-blue-500/10 text-blue-400 border-blue-500/20">
+                            <MapPin className="w-3.5 h-3.5 opacity-70" />
+                            {loc.city} 
+                            <button type="button" onClick={() => removeLocation(loc.city)} className="hover:text-red-400 transition-colors focus:outline-none ml-1"><X className="w-3.5 h-3.5 cursor-pointer" /></button>
                           </Badge>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-sm text-slate-500 italic mb-4">No cities added yet. You will not appear in local search results.</div>
+                      <div className="text-sm text-slate-500 italic mb-4">No locations added. You will not appear in local searches.</div>
                     )}
-
-                    <div className="relative flex items-center">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none" />
-                      <Input 
-                        value={cityInput} onChange={(e) => { setCityInput(e.target.value); setShowCitySuggestions(true); }}
-                        onFocus={() => setShowCitySuggestions(true)} onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCity(cityInput); } }}
-                        placeholder="Search for a city..." className="pl-10 h-11 pr-24 bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-amber-500" 
-                      />
-                      <Button type="button" size="sm" onClick={() => addCity(cityInput)} className="absolute right-1.5 h-8 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950">Add</Button>
-                    </div>
-
-                    {showCitySuggestions && cityInput && filteredCitySuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-800 border-slate-700">
-                        {filteredCitySuggestions.map(city => (
-                          <div key={city} onClick={() => addCity(city)} className="p-3 text-sm cursor-pointer transition-colors text-slate-300 hover:bg-slate-700 hover:text-white">{city}</div>
-                        ))}
+                    <div className="relative flex items-center w-full">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+                      <div className="w-full">
+                        <Autocomplete
+                          onLoad={(autocomplete) => { autocompleteRef.current = autocomplete; }}
+                          onPlaceChanged={handlePlaceChanged}
+                          options={{ componentRestrictions: { country: 'in' } }}
+                        >
+                          <Input 
+                            placeholder="Search for a neighborhood or city via Google Places..." 
+                            className="pl-10 h-11 w-full bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-amber-500"
+                            value={autocompleteInput}
+                            onChange={(e) => setAutocompleteInput(e.target.value)}
+                          />
+                        </Autocomplete>
                       </div>
-                    )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">Google Maps will instantly geocode your selections for exact proximity matches.</p>
                   </div>
-
-                  <Button onClick={handleUpdateLocations} disabled={isProcessing || proData.cities.length === 0} className="h-11 px-8 font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950">
+                  <Button onClick={handleUpdateLocations} disabled={isProcessing || proData.service_locations.length === 0} className="h-11 px-8 font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950">
                     {isProcessing ? "Saving..." : "Save Locations"}
                   </Button>
                 </div>
@@ -579,42 +664,156 @@ export default function ProSettings() {
             ========================================= */}
         {activeTab === 'verification' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
-            <Card className={`shadow-sm border overflow-visible ${proData.isVerified ? 'bg-green-500/10 border-green-500/20' : 'bg-slate-900 border-slate-800'}`}>
-              <CardContent className="p-6 flex items-center justify-between overflow-visible">
-                <div>
-                  <h3 className={`font-bold text-lg mb-1 flex items-center gap-2 ${proData.isVerified ? 'text-green-500' : 'text-white'}`}>
-                    {proData.isVerified ? <CheckCircle2 className="w-5 h-5"/> : <AlertCircle className="w-5 h-5 text-amber-500"/>}
-                    {proData.isVerified ? "Verified Professional" : "Unverified Account"}
-                  </h3>
-                  <p className={proData.isVerified ? 'text-green-400/80 text-sm' : 'text-slate-400 text-sm'}>
-                    {proData.isVerified 
-                      ? "Your identity has been confirmed. You will receive a blue verification badge on your public profile."
-                      : "Upload a government-issued ID to get the verification badge and rank higher in customer searches."}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
 
-            {!proData.isVerified && (
+            {/* 1. Fully Verified */}
+            {proData.isVerified && (
+              <Card className="shadow-sm border overflow-visible bg-green-500/10 border-green-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-green-500/20 rounded-full">
+                      <CheckCircle2 className="w-8 h-8 text-green-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-green-500 mb-1">Account Verified</h3>
+                      <p className="text-green-400/80 text-sm">
+                        Your identity has been confirmed. You now display a verification badge to customers, building trust and boosting your ranking.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 2. Pending */}
+            {!proData.isVerified && verificationReq?.status === 'pending' && (
+              <Card className="shadow-sm border overflow-visible bg-amber-500/10 border-amber-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-amber-500/20 rounded-full">
+                      <Clock className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-amber-500 mb-1">Verification in Progress</h3>
+                      <p className="text-amber-400/80 text-sm mb-5">
+                        Your document has been safely received. Please allow up to 72 hours for our team to manually review your submission.
+                      </p>
+                      <div className="p-4 bg-slate-950/50 rounded-xl border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-8 h-8 text-slate-400" />
+                          <div>
+                            <p className="font-medium text-slate-200">Submitted Document</p>
+                            <a href={verificationReq.url} target="_blank" rel="noreferrer" className="text-sm text-blue-400 hover:underline flex items-center gap-1 mt-0.5">
+                              <Eye className="w-3 h-3" /> View Submitted File
+                            </a>
+                          </div>
+                        </div>
+                        <Button variant="outline" onClick={() => document.getElementById('replace-doc-input')?.click()} className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 w-full sm:w-auto">
+                          Replace File
+                        </Button>
+                        <input id="replace-doc-input" type="file" className="hidden" accept="image/*, application/pdf" onChange={(e) => { if(e.target.files) setUploadFile(e.target.files[0]); }} />
+                      </div>
+                      {uploadFile && (
+                        <div className="mt-4 p-4 border border-slate-700 rounded-xl bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in zoom-in-95">
+                          <span className="text-sm text-slate-300 font-medium truncate w-full sm:max-w-xs">{uploadFile.name}</span>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <Button size="sm" variant="ghost" onClick={() => setUploadFile(null)} className="flex-1 sm:flex-none">Cancel</Button>
+                            <Button size="sm" onClick={handleDocumentUpload} disabled={isUploading} className="flex-1 sm:flex-none bg-amber-500 text-black hover:bg-amber-600">
+                              {isUploading ? "Uploading..." : "Confirm Replacement"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 3. Rejected — cooldown still active */}
+            {!proData.isVerified && verificationReq?.status === 'rejected' && !canReapply && (
+              <Card className="shadow-sm border overflow-visible bg-red-500/10 border-red-500/20">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-red-500/20 rounded-full">
+                      <ShieldAlert className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-red-500 mb-1">Verification Rejected</h3>
+                      <p className="text-red-400/80 text-sm mb-4">
+                        Your document submission was rejected by our review team. Please read the reason below before reapplying.
+                      </p>
+
+                      {/* Rejection reason */}
+                      {verificationReq.rejection_reason ? (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2.5">
+                          <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-0.5">Reason given by reviewer</p>
+                            <p className="text-sm text-red-300">{verificationReq.rejection_reason}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-4 p-3 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-400">
+                          No specific reason was provided. Please ensure your document is clear, valid, and fully visible.
+                        </div>
+                      )}
+
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/20 rounded-lg text-red-400 font-medium text-sm">
+                        <CalendarDays className="w-4 h-4" />
+                        You can reapply in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}.
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 4. Upload form — no request yet, or cooldown expired */}
+            {!proData.isVerified && (!verificationReq || verificationReq.status === 'none' || (verificationReq.status === 'rejected' && canReapply)) && (
               <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-visible">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white"><ShieldCheck className="h-5 w-5 text-amber-500"/> Identity Verification</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-white">
+                    <ShieldCheck className="h-5 w-5 text-amber-500"/> Submit Identity Proof
+                  </CardTitle>
                   <CardDescription className="text-slate-400">Accepted documents: PAN Card, Driving License, or Passport.</CardDescription>
                 </CardHeader>
                 <CardContent className="overflow-visible">
                   <div className="max-w-xl space-y-6">
+
+                    {verificationReq?.status === 'rejected' && (
+                      <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2.5 text-sm">
+                        <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                        <div className="text-red-400">
+                          <p className="font-semibold mb-0.5">Previous application was rejected.</p>
+                          {verificationReq.rejection_reason ? (
+                            <p>Reason: <span className="italic">"{verificationReq.rejection_reason}"</span></p>
+                          ) : (
+                            <p>Please ensure your new document is clear, valid, and fully visible.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="border-2 border-dashed border-slate-700 rounded-2xl p-8 text-center hover:bg-slate-800/50 transition-colors relative cursor-pointer">
-                      <input type="file" accept="image/png, image/jpeg, application/pdf" onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                      <input type="file" accept="image/*, application/pdf" onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
                       <UploadCloud className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                      {uploadFile ? (<div className="text-amber-500 font-medium">{uploadFile.name}</div>) : (<><div className="font-semibold text-slate-300">Click to upload or drag and drop</div><div className="text-sm text-slate-500 mt-1">SVG, PNG, JPG or PDF (max. 5MB)</div></>)}
+                      {uploadFile ? (
+                        <div className="text-amber-500 font-medium">{uploadFile.name}</div>
+                      ) : (
+                        <>
+                          <div className="font-semibold text-slate-300">Click to upload or drag and drop</div>
+                          <div className="text-sm text-slate-500 mt-1">Image or PDF (max. 5MB)</div>
+                        </>
+                      )}
                     </div>
-                    <Button onClick={handleDocumentUpload} disabled={!uploadFile || isProcessing} className="w-full h-11 font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950">
-                      {isProcessing ? "Uploading..." : "Submit for Verification"}
+                    <Button onClick={handleDocumentUpload} disabled={!uploadFile || isUploading} className="w-full h-11 font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950">
+                      {isUploading ? "Uploading..." : "Submit for Verification"}
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
+
           </div>
         )}
 

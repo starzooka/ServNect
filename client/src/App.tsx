@@ -22,6 +22,7 @@ import ProSettings from './pages/professional/ProSettings'; // <-- NEW
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
+import AdminVerifications from './pages/admin/AdminVerifications';
 
 export default function App() {
   const host = window.location.hostname;
@@ -32,10 +33,9 @@ export default function App() {
         <Routes>
         {/* UNIVERSAL ADMIN ROUTE WITH NESTED LAYOUT */}
         <Route path="/admin" element={<AdminLayout />}>
-          {/* Default page when hitting /admin */}
-          <Route index element={<AdminDashboard />} /> 
-          {/* Sub-page for /admin/users */}
-          <Route path="users" element={<UserManagement />} /> 
+          <Route index element={<AdminDashboard />} />
+          <Route path="verifications" element={<AdminVerifications />} />  {/* ADD THIS */}
+          <Route path="users" element={<UserManagement />} />
         </Route>
 
         {/* 2. DOMAIN-SPECIFIC ROUTES */}
