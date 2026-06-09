@@ -13,13 +13,7 @@ import {
   Smartphone, QrCode, Copy, Check, FileText, Clock, CalendarDays
 } from "lucide-react";
 
-const POPULAR_CATEGORIES = [
-  "AC Service & Repair", "Plumbing", "Electrician", "Carpentry", 
-  "Appliance Repair", "Deep Cleaning", "Mobile Car Wash", "Pest Control",
-  "At-Home Salon", "Massage Therapy", "Personal Trainer", "Yoga Instructor",
-  "Furniture Assembly", "Home Tech Support", "Dog Walking", "Home Tutor"
-];
-
+// Load Google Maps libraries safely outside the component
 const libraries: ("places")[] = ['places'];
 
 export default function ProSettings() {
@@ -27,9 +21,12 @@ export default function ProSettings() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
-  
   const [activeTab, setActiveTab] = useState<'security' | 'business' | 'locations' | 'verification'>('security');
 
+  // --- NEW: DYNAMIC PLATFORM CATEGORIES ---
+  const [platformCategories, setPlatformCategories] = useState<string[]>([]);
+
+  // --- GOOGLE MAPS LOAD SCRIPT ---
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string,
     libraries,
@@ -52,19 +49,12 @@ export default function ProSettings() {
   
   const [categoryInput, setCategoryInput] = useState('');
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
-  
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [autocompleteInput, setAutocompleteInput] = useState('');
 
   // --- VERIFICATION STATE ---
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [verificationReq, setVerificationReq] = useState<{
-    id: string;
-    status: string;
-    url: string;
-    created_at: string;
-    rejection_reason: string | null;
-  } | null>(null);
+  const [verificationReq, setVerificationReq] = useState<{id: string, status: string, url: string, created_at: string} | null>(null);
 
   // --- SECURITY STATE ---
   const [currentPassword, setCurrentPassword] = useState('');
@@ -92,12 +82,22 @@ export default function ProSettings() {
   useEffect(() => {
     const fetchInitialData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate('/login'); return; }
+      if (!user) {
+        navigate('/login');
+        return;
+      }
       
       setUserId(user.id);
       setUserEmail(user.email || '');
       setUserName(user.user_metadata?.full_name || 'N/A');
 
+      // 1. Fetch Dynamic Categories from Admin Dashboard
+      const { data: catData } = await supabase.from('service_categories').select('name').eq('is_active', true);
+      if (catData) {
+        setPlatformCategories(catData.map(c => c.name));
+      }
+
+      // 2. Fetch Pro Profile
       const { data: profile } = await supabase.from('professionals').select('*').eq('id', user.id).single();
       if (profile) {
         setProData({
@@ -107,14 +107,15 @@ export default function ProSettings() {
           service_locations: profile.service_locations || [], 
           isVerified: profile.is_verified || profile.verified || false
         });
+
         const rawPhone = profile.phone || user.user_metadata?.phone || '';
         setUserPhone(rawPhone.replace(/^\+91/, '').trim());
       }
 
-      // Fetch latest verification request — includes rejection_reason
+      // 3. Fetch latest Verification Request
       const { data: vReq } = await supabase
         .from('verification_requests')
-        .select('id, status, document_url, created_at, rejection_reason')
+        .select('*')
         .eq('pro_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -123,14 +124,11 @@ export default function ProSettings() {
       if (vReq) {
         const { data: urlData } = supabase.storage.from('verification-docs').getPublicUrl(vReq.document_url);
         setVerificationReq({
-          id: vReq.id,
-          status: vReq.status,
-          url: urlData.publicUrl,
-          created_at: vReq.created_at,
-          rejection_reason: vReq.rejection_reason ?? null,
+          id: vReq.id, status: vReq.status, url: urlData.publicUrl, created_at: vReq.created_at
         });
       }
 
+      // 4. Fetch 2FA Status
       const { data: mfaData, error } = await supabase.auth.mfa.listFactors();
       if (!error && mfaData) {
         const verifiedTotp = mfaData.totp.find((factor: any) => factor.status === 'verified');
@@ -146,6 +144,7 @@ export default function ProSettings() {
     setTimeout(() => setGlobalMessage(null), 5000);
   };
 
+  // --- PRO PROFILE UPDATE HANDLERS ---
   const handleUpdatePersonalInfo = async () => {
     if (!userId) return;
     const phoneRegex = /^[6-9]\d{9}$/;
@@ -194,31 +193,15 @@ export default function ProSettings() {
       const fileName = `${userId}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('verification-docs').upload(fileName, uploadFile);
       if (uploadError) throw uploadError;
-
-      if (verificationReq?.status === 'pending') {
-        // REPLACE: update the existing pending row instead of inserting a new one
-        const { error: dbError } = await supabase
-          .from('verification_requests')
-          .update({ document_url: fileName })
-          .eq('id', verificationReq.id);
-        if (dbError) throw dbError;
-      } else {
-        // NEW submission: insert a fresh row
-        const { error: dbError } = await supabase
-          .from('verification_requests')
-          .insert([{ pro_id: userId, document_url: fileName, status: 'pending' }]);
-        if (dbError) throw dbError;
-      }
-
+  
+      const { error: dbError } = await supabase.from('verification_requests').insert([{ pro_id: userId, document_url: fileName }]);
+      if (dbError) throw dbError;
+  
       const { data: urlData } = supabase.storage.from('verification-docs').getPublicUrl(fileName);
       setVerificationReq({
-        id: verificationReq?.id ?? 'new-temp-id',
-        status: 'pending',
-        url: urlData.publicUrl,
-        created_at: new Date().toISOString(),
-        rejection_reason: null,
+        id: 'new-temp-id', status: 'pending', url: urlData.publicUrl, created_at: new Date().toISOString()
       });
-
+  
       showMsg('success', 'Document submitted! It may take up to 72 hours to verify.');
       setUploadFile(null);
     } catch (err: any) { showMsg('error', err.message); } finally { setIsUploading(false); }
@@ -236,13 +219,17 @@ export default function ProSettings() {
     }
   }
 
-  // --- PRO MULTI-SELECT HELPERS ---
-  const filteredCategories = POPULAR_CATEGORIES.filter(c => c.toLowerCase().includes(categoryInput.toLowerCase()) && !proData.categories.includes(c));
+  // --- DYNAMIC MULTI-SELECT HELPERS ---
+  const filteredCategories = platformCategories.filter(c => 
+    c.toLowerCase().includes(categoryInput.toLowerCase()) && !proData.categories.includes(c)
+  );
+  
   const addCategory = (cat: string) => {
     const trimmed = cat.trim();
     if (trimmed && !proData.categories.includes(trimmed)) setProData(prev => ({ ...prev, categories: [...prev.categories, trimmed] }));
     setCategoryInput(''); setShowCategorySuggestions(false);
   };
+  
   const removeCategory = (catToRemove: string) => setProData(prev => ({ ...prev, categories: prev.categories.filter(c => c !== catToRemove) }));
 
   const handlePlaceChanged = () => {
@@ -421,7 +408,7 @@ export default function ProSettings() {
           </div>
         )}
 
-        {/* --- TABS NAV --- */}
+        {/* --- PRO TABS NAVIGATION --- */}
         <div className="flex overflow-x-auto gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl scrollbar-hide">
           {[
             { id: 'security', icon: KeyRound, label: 'Account & Security' },
@@ -454,15 +441,24 @@ export default function ProSettings() {
                   <Label className="font-medium text-slate-300">Email Address</Label>
                   <Input value={userEmail} readOnly className="cursor-not-allowed h-11 focus-visible:ring-0 bg-slate-950 border-slate-800 text-slate-500" />
                 </div>
+                
+                {/* --- EDITABLE PHONE WITH STRICT VERIFICATION --- */}
                 <div className="space-y-2 pt-2 border-t border-slate-800">
                   <Label className="font-medium text-slate-300">Verified Contact Number</Label>
                   <div className="relative flex items-center">
-                    <div className="absolute left-3 font-medium text-slate-400 pointer-events-none">+91</div>
+                    <div className="absolute left-3 font-medium text-slate-400 pointer-events-none">
+                      +91
+                    </div>
                     <Input 
-                      type="tel" maxLength={10} placeholder="98765 43210"
+                      type="tel" 
+                      maxLength={10}
+                      placeholder="98765 43210"
                       className="pl-12 h-11 bg-slate-950 border-slate-800 text-white focus-visible:ring-amber-500 font-medium tracking-wide"
                       value={userPhone} 
-                      onChange={(e) => setUserPhone(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => {
+                        const digitsOnly = e.target.value.replace(/\D/g, '');
+                        setUserPhone(digitsOnly);
+                      }}
                     />
                   </div>
                   <p className="text-xs text-slate-500">Only valid 10-digit Indian numbers are accepted.</p>
@@ -551,6 +547,7 @@ export default function ProSettings() {
               </CardHeader>
               <CardContent className="overflow-visible">
                 <div className="space-y-6 max-w-2xl">
+                  
                   <div className="space-y-3 relative overflow-visible">
                     <Label className="font-medium text-slate-300">Services Offered</Label>
                     {proData.categories.length > 0 && (
@@ -571,11 +568,12 @@ export default function ProSettings() {
                         onFocus={() => setShowCategorySuggestions(true)} 
                         onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(categoryInput); } }}
-                        placeholder="Add another service..." 
+                        placeholder="Search for a service..." 
                         className="w-full pl-10 h-11 pr-24 bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-amber-500" 
                       />
                       <Button type="button" size="sm" onClick={() => addCategory(categoryInput)} className="absolute right-1.5 h-8 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950">Add</Button>
                     </div>
+                    {/* DYNAMIC LIST RENDERED HERE */}
                     {showCategorySuggestions && categoryInput && filteredCategories.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 rounded-xl shadow-xl max-h-48 overflow-y-auto border bg-slate-800 border-slate-700">
                         {filteredCategories.map(cat => (
@@ -584,10 +582,12 @@ export default function ProSettings() {
                       </div>
                     )}
                   </div>
+
                   <div className="space-y-2">
                     <Label className="font-medium text-slate-300">Years of Experience</Label>
                     <Input value={proData.experience} onChange={(e) => setProData({...proData, experience: e.target.value})} placeholder="e.g. 5 Years" className="h-11 bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-amber-500" />
                   </div>
+
                   <div className="space-y-2">
                     <Label className="font-medium text-slate-300">Professional Bio</Label>
                     <textarea 
@@ -595,6 +595,7 @@ export default function ProSettings() {
                       className="w-full min-h-[120px] p-3 rounded-xl border focus:outline-none focus:ring-2 text-sm resize-none bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus:ring-amber-500"
                     />
                   </div>
+
                   <Button onClick={handleUpdateBusinessProfile} disabled={isProcessing} className="h-11 px-8 font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950">
                     {isProcessing ? "Saving..." : "Save Business Profile"}
                   </Button>
@@ -605,7 +606,7 @@ export default function ProSettings() {
         )}
 
         {/* =========================================
-            TAB 3: LOCATIONS
+            TAB 3: LOCATIONS (GOOGLE MAPS)
             ========================================= */}
         {activeTab === 'locations' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
@@ -616,6 +617,7 @@ export default function ProSettings() {
               </CardHeader>
               <CardContent className="overflow-visible">
                 <div className="space-y-6 max-w-2xl">
+                  
                   <div className="space-y-3 relative overflow-visible">
                     <Label className="font-medium text-slate-300">Active Service Locations</Label>
                     {proData.service_locations.length > 0 ? (
@@ -631,6 +633,7 @@ export default function ProSettings() {
                     ) : (
                       <div className="text-sm text-slate-500 italic mb-4">No locations added. You will not appear in local searches.</div>
                     )}
+
                     <div className="relative flex items-center w-full">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
                       <div className="w-full">
@@ -650,6 +653,7 @@ export default function ProSettings() {
                     </div>
                     <p className="text-xs text-slate-500 mt-2">Google Maps will instantly geocode your selections for exact proximity matches.</p>
                   </div>
+
                   <Button onClick={handleUpdateLocations} disabled={isProcessing || proData.service_locations.length === 0} className="h-11 px-8 font-semibold bg-amber-500 hover:bg-amber-600 text-slate-950">
                     {isProcessing ? "Saving..." : "Save Locations"}
                   </Button>
@@ -660,12 +664,12 @@ export default function ProSettings() {
         )}
 
         {/* =========================================
-            TAB 4: VERIFICATION
+            TAB 4: VERIFICATION 
             ========================================= */}
         {activeTab === 'verification' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2">
-
-            {/* 1. Fully Verified */}
+            
+            {/* 1. Fully Verified State */}
             {proData.isVerified && (
               <Card className="shadow-sm border overflow-visible bg-green-500/10 border-green-500/20">
                 <CardContent className="p-6">
@@ -676,7 +680,7 @@ export default function ProSettings() {
                     <div>
                       <h3 className="font-bold text-lg text-green-500 mb-1">Account Verified</h3>
                       <p className="text-green-400/80 text-sm">
-                        Your identity has been confirmed. You now display a verification badge to customers, building trust and boosting your ranking.
+                        Your identity has been confirmed. You now display a blue verification badge to customers, building trust and boosting your ranking.
                       </p>
                     </div>
                   </div>
@@ -684,7 +688,7 @@ export default function ProSettings() {
               </Card>
             )}
 
-            {/* 2. Pending */}
+            {/* 2. Verification Pending State */}
             {!proData.isVerified && verificationReq?.status === 'pending' && (
               <Card className="shadow-sm border overflow-visible bg-amber-500/10 border-amber-500/20">
                 <CardContent className="p-6">
@@ -697,6 +701,7 @@ export default function ProSettings() {
                       <p className="text-amber-400/80 text-sm mb-5">
                         Your document has been safely received. Please allow up to 72 hours for our team to manually review your submission.
                       </p>
+
                       <div className="p-4 bg-slate-950/50 rounded-xl border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                           <FileText className="w-8 h-8 text-slate-400" />
@@ -710,17 +715,20 @@ export default function ProSettings() {
                         <Button variant="outline" onClick={() => document.getElementById('replace-doc-input')?.click()} className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 w-full sm:w-auto">
                           Replace File
                         </Button>
-                        <input id="replace-doc-input" type="file" className="hidden" accept="image/*, application/pdf" onChange={(e) => { if(e.target.files) setUploadFile(e.target.files[0]); }} />
+                        <input id="replace-doc-input" type="file" className="hidden" accept="image/*, application/pdf" onChange={(e) => {
+                           if(e.target.files) setUploadFile(e.target.files[0]);
+                        }} />
                       </div>
+                      
                       {uploadFile && (
                         <div className="mt-4 p-4 border border-slate-700 rounded-xl bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in zoom-in-95">
-                          <span className="text-sm text-slate-300 font-medium truncate w-full sm:max-w-xs">{uploadFile.name}</span>
-                          <div className="flex gap-2 w-full sm:w-auto">
-                            <Button size="sm" variant="ghost" onClick={() => setUploadFile(null)} className="flex-1 sm:flex-none">Cancel</Button>
-                            <Button size="sm" onClick={handleDocumentUpload} disabled={isUploading} className="flex-1 sm:flex-none bg-amber-500 text-black hover:bg-amber-600">
-                              {isUploading ? "Uploading..." : "Confirm Replacement"}
-                            </Button>
-                          </div>
+                           <span className="text-sm text-slate-300 font-medium truncate w-full sm:max-w-xs">{uploadFile.name}</span>
+                           <div className="flex gap-2 w-full sm:w-auto">
+                             <Button size="sm" variant="ghost" onClick={() => setUploadFile(null)} className="flex-1 sm:flex-none">Cancel</Button>
+                             <Button size="sm" onClick={handleDocumentUpload} disabled={isUploading} className="flex-1 sm:flex-none bg-amber-500 text-black hover:bg-amber-600">
+                               {isUploading ? "Uploading..." : "Confirm Replacement"}
+                             </Button>
+                           </div>
                         </div>
                       )}
                     </div>
@@ -729,7 +737,7 @@ export default function ProSettings() {
               </Card>
             )}
 
-            {/* 3. Rejected — cooldown still active */}
+            {/* 3. Verification Rejected State (Blocked by Cooldown) */}
             {!proData.isVerified && verificationReq?.status === 'rejected' && !canReapply && (
               <Card className="shadow-sm border overflow-visible bg-red-500/10 border-red-500/20">
                 <CardContent className="p-6">
@@ -740,26 +748,10 @@ export default function ProSettings() {
                     <div className="flex-1">
                       <h3 className="font-bold text-lg text-red-500 mb-1">Verification Rejected</h3>
                       <p className="text-red-400/80 text-sm mb-4">
-                        Your document submission was rejected by our review team. Please read the reason below before reapplying.
+                        Unfortunately, the document you submitted was either illegible, expired, or invalid. To maintain marketplace integrity, there is a mandatory 7-day cooldown before you can submit a new document.
                       </p>
-
-                      {/* Rejection reason */}
-                      {verificationReq.rejection_reason ? (
-                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2.5">
-                          <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                          <div>
-                            <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-0.5">Reason given by reviewer</p>
-                            <p className="text-sm text-red-300">{verificationReq.rejection_reason}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mb-4 p-3 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-400">
-                          No specific reason was provided. Please ensure your document is clear, valid, and fully visible.
-                        </div>
-                      )}
-
                       <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/20 rounded-lg text-red-400 font-medium text-sm">
-                        <CalendarDays className="w-4 h-4" />
+                        <CalendarDays className="w-4 h-4" /> 
                         You can reapply in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}.
                       </div>
                     </div>
@@ -768,7 +760,7 @@ export default function ProSettings() {
               </Card>
             )}
 
-            {/* 4. Upload form — no request yet, or cooldown expired */}
+            {/* 4. Upload Form (No Request, or Rejection Cooldown is over) */}
             {!proData.isVerified && (!verificationReq || verificationReq.status === 'none' || (verificationReq.status === 'rejected' && canReapply)) && (
               <Card className="shadow-sm bg-slate-900 border-slate-800 overflow-visible">
                 <CardHeader>
@@ -779,18 +771,11 @@ export default function ProSettings() {
                 </CardHeader>
                 <CardContent className="overflow-visible">
                   <div className="max-w-xl space-y-6">
-
+                    
                     {verificationReq?.status === 'rejected' && (
-                      <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2.5 text-sm">
-                        <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                        <div className="text-red-400">
-                          <p className="font-semibold mb-0.5">Previous application was rejected.</p>
-                          {verificationReq.rejection_reason ? (
-                            <p>Reason: <span className="italic">"{verificationReq.rejection_reason}"</span></p>
-                          ) : (
-                            <p>Please ensure your new document is clear, valid, and fully visible.</p>
-                          )}
-                        </div>
+                      <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400 text-sm mb-2">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        <p>Your previous application was rejected. Please ensure this new document is clear, valid, and fully visible.</p>
                       </div>
                     )}
 

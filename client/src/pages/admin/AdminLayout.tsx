@@ -3,7 +3,8 @@ import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ShieldCheck, Users, LayoutDashboard, LogOut } from "lucide-react";
+// 1. Added 'Briefcase' to the lucide-react imports
+import { ShieldCheck, Users, LayoutDashboard, LogOut, Briefcase } from "lucide-react";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -138,6 +139,19 @@ export default function AdminLayout() {
           >
             <Users className="w-5 h-5" /> User Management
           </button>
+
+          {/* 2. Added the Categories Button Here */}
+          <button
+            onClick={() => navigate('/admin/categories')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-semibold transition-colors ${
+              location.pathname === '/admin/categories'
+                ? 'bg-indigo-500/10 text-indigo-400'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Briefcase className="w-5 h-5" /> Categories
+          </button>
+
         </div>
 
         <div className="p-4 border-t border-slate-800 shrink-0">
