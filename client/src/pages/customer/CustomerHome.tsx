@@ -14,16 +14,23 @@ import BookingModal from '@/components/customer/BookingModal';
 import DiscoverTab from '@/components/customer/DiscoverTab';
 import BookingsTab from '@/components/customer/BookingsTab';
 
+// --- FIXED IMPORT PATH FOR DISTANCE UTILS ---
+import { calculateDistance, parseTravelRadius } from '@/lib/distance';
+
 export default function CustomerHome() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'discover';
   const setActiveTab = (tab: string) => setSearchParams({ tab });
 
+  // --- LOCATION STATES ---
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const [customerLocation, setCustomerLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [ignoreDistanceFilter, setIgnoreDistanceFilter] = useState(false);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-
   const [availableCategories, setAvailableCategories] = useState<any[]>([]);
 
   const [userData, setUserData] = useState<any>(null);
@@ -49,6 +56,28 @@ export default function CustomerHome() {
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // --- GPS LOCATION HANDLER ---
+  const handleRequestLocation = () => {
+    setIsLocating(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCustomerLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+          setLocationEnabled(true);
+          setIgnoreDistanceFilter(false); 
+          setIsLocating(false);
+        },
+        () => {
+          alert("Location access denied or unavailable. Please browse all professionals.");
+          setIsLocating(false);
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser.");
+      setIsLocating(false);
+    }
+  };
 
   const fetchCategories = async () => {
     const { data, error } = await supabase
@@ -127,7 +156,8 @@ export default function CustomerHome() {
     if (activeChat) {
       fetchMessages(activeChat.id);
       chatSubscription = supabase.channel(`chat_customer_${activeChat.id}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'booking_messages', filter: `booking_id=eq.${activeChat.id}` }, payload => {
+        // FIXED: Added strict (payload: any) typing here
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'booking_messages', filter: `booking_id=eq.${activeChat.id}` }, (payload: any) => {
           setMessages(prev => [...prev, payload.new]);
           scrollToBottom();
         }).subscribe();
@@ -205,13 +235,43 @@ export default function CustomerHome() {
     setShowRestoreModal(false);
   };
 
-  const filteredPros = pros.filter(pro => {
+  // --- DISTANCE CALCULATION & FILTERING ---
+  const processedPros = pros.map(pro => {
+    let closestDistance = Infinity;
+
+    if (customerLocation && pro.service_locations && pro.service_locations.length > 0) {
+      pro.service_locations.forEach((loc: any) => {
+        const dist = calculateDistance(customerLocation.lat, customerLocation.lng, loc.lat, loc.lng);
+        if (dist < closestDistance) closestDistance = dist;
+      });
+    }
+
+    return {
+      ...pro,
+      distanceFromCustomer: closestDistance,
+      maxTravel: parseTravelRadius(pro.travel_radius)
+    };
+  });
+
+  const filteredPros = processedPros.filter(pro => {
     if (userData && pro.id === userData.id) return false;
     if (!pro.full_name || !pro.category) return false;
-    const matchesSearch = pro.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || pro.category.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesSearch = pro.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          pro.category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = activeCategory ? pro.category.toLowerCase().includes(activeCategory.toLowerCase()) : true;
-    return matchesSearch && matchesCategory;
-  }).sort((a, b) => (b.is_online ? 1 : 0) - (a.is_online ? 1 : 0));
+    
+    const isWithin100km = (!customerLocation || ignoreDistanceFilter) ? true : pro.distanceFromCustomer <= 100;
+
+    return matchesSearch && matchesCategory && isWithin100km;
+  }).sort((a, b) => {
+    if (customerLocation && !ignoreDistanceFilter && a.distanceFromCustomer !== b.distanceFromCustomer) {
+       return a.distanceFromCustomer - b.distanceFromCustomer;
+    }
+    return (b.is_online ? 1 : 0) - (a.is_online ? 1 : 0);
+  });
+
+  const closestProDistance = filteredPros.length > 0 ? filteredPros[0].distanceFromCustomer : Infinity;
 
   if (showRestoreModal) {
     return (
@@ -287,7 +347,8 @@ export default function CustomerHome() {
           <div className="bg-white rounded-3xl max-w-lg w-full h-[85vh] flex flex-col overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10"><AvatarFallback className="bg-blue-100 text-blue-600">{activeChat.professional?.full_name[0] || 'P'}</AvatarFallback></Avatar>
+                {/* FIXED: Safe chaining for full_name array indexing */}
+                <Avatar className="h-10 w-10"><AvatarFallback className="bg-blue-100 text-blue-600">{activeChat.professional?.full_name?.[0] || 'P'}</AvatarFallback></Avatar>
                 <div><h3 className="font-bold">{activeChat.professional?.full_name}</h3></div>
               </div>
               <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
@@ -330,31 +391,15 @@ export default function CustomerHome() {
                 <span className="text-sm font-semibold ml-2 hidden sm:block">{userData?.name || 'Account'}</span>
               </Button>
             </DropdownMenuTrigger>
-            
-            {/* FIXED STYLING FOR THE DROPDOWN CONTENT */}
             <DropdownMenuContent className="w-56 p-2 rounded-2xl bg-white border border-slate-200 shadow-lg text-slate-700" align="end">
-              
-              {/* Notice the focus:bg-slate-50 and focus:text-blue-600 */}
-              <DropdownMenuItem 
-                onClick={() => navigate('/settings')} 
-                className="cursor-pointer hover:bg-slate-50 focus:bg-slate-50 focus:text-blue-600 rounded-xl px-3 py-2.5 transition-colors"
-              >
-                <Settings className="mr-3 h-4 w-4 text-slate-500" /> 
-                <span className="font-medium">Account Settings</span>
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer hover:bg-slate-50 focus:bg-slate-50 focus:text-blue-600 rounded-xl px-3 py-2.5 transition-colors">
+                <Settings className="mr-3 h-4 w-4 text-slate-500" /> <span className="font-medium">Account Settings</span>
               </DropdownMenuItem>
-              
-              {/* Notice the focus:bg-red-50 and focus:text-red-700 */}
-              <DropdownMenuItem 
-                onClick={() => setShowLogoutModal(true)} 
-                className="cursor-pointer text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 rounded-xl px-3 py-2.5 transition-colors"
-              >
-                <LogOut className="mr-3 h-4 w-4" /> 
-                <span className="font-medium">Log out</span>
+              <DropdownMenuItem onClick={() => setShowLogoutModal(true)} className="cursor-pointer text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 rounded-xl px-3 py-2.5 transition-colors">
+                <LogOut className="mr-3 h-4 w-4" /> <span className="font-medium">Log out</span>
               </DropdownMenuItem>
-
             </DropdownMenuContent>
           </DropdownMenu>
-
         </div>
       </nav>
 
@@ -366,7 +411,12 @@ export default function CustomerHome() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             locationEnabled={locationEnabled}
-            requestLocation={() => setLocationEnabled(true)}
+            requestLocation={handleRequestLocation}
+            isLocating={isLocating}
+            customerLocation={customerLocation}
+            closestProDistance={closestProDistance}
+            ignoreDistanceFilter={ignoreDistanceFilter}
+            setIgnoreDistanceFilter={setIgnoreDistanceFilter}
             activeCategory={activeCategory}
             setActiveCategory={setActiveCategory}
             filteredPros={filteredPros}
