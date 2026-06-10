@@ -11,6 +11,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 // --- CUSTOMER PAGES ---
 import CustomerHome from './pages/customer/CustomerHome';
 import CustomerSettings from './pages/customer/CustomerSettings';
+import ProProfile from './pages/customer/ProProfile'; // <-- Imported public portfolio page
 
 // --- PROFESSIONAL PAGES ---
 import ProfessionalLanding from './pages/professional/ProfessionalLanding';
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/home" element={<CustomerHome />} />
             <Route path="/settings" element={<CustomerSettings />} />
+            <Route path="/pro/:proId" element={<ProProfile />} /> {/* <-- Connected dynamic portfolio path */}
             
             {/* Customer Auth Routes */}
             <Route path="/login" element={<CustomerSignIn />} />

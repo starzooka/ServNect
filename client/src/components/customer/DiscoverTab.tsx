@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -20,6 +21,8 @@ export default function DiscoverTab({
   setSelectedPro, 
   availableCategories 
 }: any) {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       
@@ -134,7 +137,13 @@ export default function DiscoverTab({
 
                 <div className="flex items-center gap-2">
                   <Button onClick={() => setSelectedPro(pro)} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl">Book Now</Button>
-                  <Button variant="outline" className="flex-1 border-slate-200 rounded-xl hover:bg-slate-50">View Profile</Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 border-slate-200 rounded-xl hover:bg-slate-50"
+                    onClick={() => navigate(`/pro/${pro.id}`)}
+                  >
+                    View Profile
+                  </Button>
                 </div>
               </div>
             ))}
