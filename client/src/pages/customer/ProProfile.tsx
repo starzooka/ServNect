@@ -99,12 +99,22 @@ export default function ProProfile() {
       setShowBookingModal(false);
       setBookingForm({ issue: '', address: '', scheduled_time: '' });
       alert("Booking request transmitted successfully!");
-      navigate('/home?tab=bookings'); // Redirect back to active bookings queue
+      navigate('/home?tab=bookings'); 
     } catch (err: any) {
       setBookingError(err.message || "Failed to finalize booking.");
     } finally {
       setIsBooking(false);
     }
+  };
+
+  // --- DYNAMIC EXPERIENCE FORMATTER ---
+  // Converts "2018-05-12" to "Working since 2018"
+  const getExperienceDisplay = (dateString: string | null) => {
+    if (!dateString) return 'New Member';
+    const year = new Date(dateString).getFullYear();
+    // Fallback just in case an invalid date gets passed
+    if (isNaN(year)) return 'New Member'; 
+    return `Working since ${year}`;
   };
 
   if (isLoading) {
@@ -230,7 +240,7 @@ export default function ProProfile() {
                 <p className="text-base font-bold text-blue-600">{pro.category}</p>
               </div>
 
-              {/* Core metrics metrics badges horizontal bar */}
+              {/* Core metrics badges horizontal bar */}
               <div className="grid grid-cols-3 gap-4 border-y border-slate-100 my-6 py-4 text-center">
                 <div>
                   <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Rating Score</p>
@@ -240,8 +250,9 @@ export default function ProProfile() {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Experience</p>
-                  <p className="text-base font-extrabold text-slate-900 mt-1 flex items-center justify-center gap-1">
-                    <Award className="w-4 h-4 text-slate-400" /> {pro.experience || 'New Member'}
+                  {/* UPDATED: DYNAMIC EXPERIENCE DISPLAY */}
+                  <p className="text-[13px] font-extrabold text-slate-900 mt-1.5 flex items-center justify-center gap-1">
+                    <Award className="w-4 h-4 text-slate-400" /> {getExperienceDisplay(pro.experience_start_date)}
                   </p>
                 </div>
                 <div>
@@ -326,7 +337,9 @@ export default function ProProfile() {
                     <Clock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-bold text-slate-800">Dispatch Window</p>
-                      <p className="text-slate-500 mt-0.5 leading-normal">Within {pro.travel_radius || '10 km'}</p>
+                      <p className="text-slate-500 mt-0.5 leading-normal">
+                         {pro.travel_radius ? `Within ${pro.travel_radius}` : 'Regional Area Support'}
+                      </p>
                     </div>
                   </div>
                 </div>

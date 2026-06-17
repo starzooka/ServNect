@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wrench, ArrowLeft, Mail, Lock, User, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Wrench, ArrowLeft, Mail, Lock, User, Phone, AlertCircle, CheckCircle2, Calendar } from "lucide-react";
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -18,36 +18,123 @@ export default function SignUp() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '' });
+  // Added dob to the state
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '', dob: '' });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Calculate today's date for the max attribute (prevents picking future dates)
+  const todayISO = new Date().toISOString().split('T')[0];
+
+  // --- REAL-TIME INPUT RESTRICTION ---
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
+    if (name === 'phone') {
+      const numbersOnly = value.replace(/[^0-9]/g, '');
+      if (numbersOnly.length <= 10) {
+        setFormData(prev => ({ ...prev, [name]: numbersOnly }));
+      }
+      return; 
+    }
+
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
+    // --- PRE-PROCESSING ---
+    const cleanName = formData.name.trim();
+    const cleanEmail = formData.email.trim();
+
+    // --- SUBMIT VALIDATION ---
+    
+    // 0. Manual Required Check
+    if (!cleanName || !cleanEmail || !formData.password || !formData.dob || (requestedRole === 'professional' && !formData.phone)) {
+      setErrorMsg("Please fill in all required fields.");
+      setIsLoading(false);
+      return;
+    }
+
+    // 1. Name Validation
+    if (/\d/.test(cleanName)) {
+      setErrorMsg("Your name cannot contain numbers.");
+      setIsLoading(false);
+      return;
+    }
+    if (cleanName.length > 80) {
+      setErrorMsg("Name cannot be longer than 80 characters. If your name is longer, please remove your middle names.");
+      setIsLoading(false);
+      return;
+    }
+
+    // 2. Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMsg("The email format is invalid.");
+      setIsLoading(false);
+      return;
+    }
+
+    // 3. Age Validation (Must be 18 or older)
+    const dobDate = new Date(formData.dob);
+    const today = new Date();
+    let age = today.getFullYear() - dobDate.getFullYear();
+    const m = today.getMonth() - dobDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      setErrorMsg("You must be at least 18 years old to create an account.");
+      setIsLoading(false);
+      return;
+    }
+
+    // 4. Phone Validation (Enhanced for India)
+    if (requestedRole === 'professional' && formData.phone) {
+      if (formData.phone.length !== 10) {
+        setErrorMsg("Please enter a valid 10-digit phone number.");
+        setIsLoading(false);
+        return;
+      }
+      if (!/^[6-9]/.test(formData.phone)) {
+        setErrorMsg("Please enter a valid Indian mobile number (must start with 6, 7, 8, or 9).");
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    // 5. Password Length Validation
+    if (formData.password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const { data, error: authError } = await supabase.auth.signUp({
-        email: formData.email, password: formData.password,
-        options: { data: { full_name: formData.name, role: requestedRole, phone: formData.phone } }
+        email: cleanEmail, 
+        password: formData.password,
+        options: { 
+          data: { full_name: cleanName, role: requestedRole, phone: formData.phone, dob: formData.dob } 
+        }
       });
 
       if (authError) throw authError;
 
-      // --- THE SUPABASE FAKE SUCCESS CATCHER ---
       if (data.user && data.user.identities && data.user.identities.length === 0) {
         throw new Error("already registered");
       }
 
-      // --- USE UPSERT TO PREVENT PRIMARY KEY CRASHES ---
       if (data.user) {
         const tableName = requestedRole === 'professional' ? 'professionals' : 'customers';
         const profileData = { 
           id: data.user.id,
-          full_name: formData.name,
-          email: formData.email,
-          phone: formData.phone || null
+          full_name: cleanName,
+          email: cleanEmail,
+          phone: formData.phone || null,
+          dob: formData.dob // Save DOB to database
         };
         
         const { error: dbError } = await supabase.from(tableName).upsert([profileData]);
@@ -58,13 +145,16 @@ export default function SignUp() {
       setTimeout(() => navigate('/login'), 3000);
       
     } catch (error: any) {
-      // --- UPGRADED DOMAIN-AWARE UX MESSAGING ---
-      if (error.message?.toLowerCase().includes('already registered')) {
+      const errorStr = error.message?.toLowerCase() || "";
+
+      if (errorStr.includes('already registered')) {
         if (isProDomain) {
           setErrorMsg("Great news! You already have a Customer account with this email. You don't need to sign up again—just click 'Log in' below using your existing password to set up your Partner profile.");
         } else {
           setErrorMsg("It looks like you already have a Partner account with us! You can use the exact same email and password to log in as a Customer. Just click 'Log in' below.");
         }
+      } else if (errorStr.includes('email')) {
+        setErrorMsg("The email format is invalid.");
       } else {
         setErrorMsg(error.message);
       }
@@ -106,28 +196,80 @@ export default function SignUp() {
               </CardHeader>
               <CardContent>
                 {errorMsg && <div className={`mb-6 p-3 rounded-lg flex items-start gap-2 text-sm animate-in fade-in ${isProDomain ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}><AlertCircle className="h-5 w-5 shrink-0 mt-0.5" /><span>{errorMsg}</span></div>}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                    
                     <div className="space-y-2">
                       <Label className={`font-medium ${isProDomain ? 'text-slate-300' : 'text-slate-900'}`}>Full Name</Label>
-                      <div className="relative flex items-center"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" /><Input name="name" value={formData.name} onChange={handleChange} placeholder="John Doe" required className={`pl-10 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} /></div>
+                      <div className="relative flex items-center">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                        <Input name="name" value={formData.name} onChange={handleChange} placeholder="John Doe" required className={`pl-10 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} />
+                      </div>
                     </div>
+                    
                     <div className="space-y-2">
                       <Label className={`font-medium ${isProDomain ? 'text-slate-300' : 'text-slate-900'}`}>Email Address</Label>
-                      <div className="relative flex items-center"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" /><Input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="john@example.com" required className={`pl-10 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} /></div>
+                      <div className="relative flex items-center">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                        <Input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="john@example.com" required className={`pl-10 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} />
+                      </div>
                     </div>
+
+                    {/* NEW DOB FIELD */}
+                    <div className="space-y-2">
+                      <Label className={`font-medium ${isProDomain ? 'text-slate-300' : 'text-slate-900'}`}>Date of Birth</Label>
+                      <div className="relative flex items-center">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                        <Input 
+                          name="dob" 
+                          type="date" 
+                          value={formData.dob} 
+                          onChange={handleChange} 
+                          max={todayISO}
+                          required 
+                          className={`pl-10 h-11 cursor-pointer ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} 
+                        />
+                      </div>
+                    </div>
+
                     {requestedRole === 'professional' && (
                       <div className="space-y-2">
                         <Label className={`font-medium ${isProDomain ? 'text-slate-300' : 'text-slate-900'}`}>Phone Number</Label>
-                        <div className="relative flex items-center"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" /><Input name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="+91 98765 43210" required className={`pl-10 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} /></div>
+                        <div className="relative flex items-center">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                          <span className={`absolute left-10 top-1/2 -translate-y-1/2 font-medium pointer-events-none ${isProDomain ? 'text-slate-400' : 'text-slate-500'}`}>
+                            +91
+                          </span>
+                          <Input 
+                            name="phone" 
+                            type="tel" 
+                            value={formData.phone} 
+                            onChange={handleChange} 
+                            placeholder="9876543210" 
+                            maxLength={10} 
+                            required 
+                            className={`pl-20 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} 
+                          />
+                        </div>
                       </div>
                     )}
+                    
                     <div className="space-y-2">
                       <Label className={`font-medium ${isProDomain ? 'text-slate-300' : 'text-slate-900'}`}>Password</Label>
-                      <div className="relative flex items-center"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" /><Input name="password" type="password" value={formData.password} onChange={handleChange} placeholder="••••••••" required minLength={6} className={`pl-10 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} /></div>
+                      <div className="relative flex items-center">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                        <Input name="password" type="password" value={formData.password} onChange={handleChange} placeholder="••••••••" required minLength={6} className={`pl-10 h-11 ${isProDomain ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus-visible:ring-amber-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:ring-blue-600'}`} />
+                      </div>
                     </div>
+
                   </div>
-                  <div className="pt-2"><Button type="submit" disabled={isLoading} className={`w-full h-12 text-base font-semibold transition-transform active:scale-95 ${isProDomain ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>{isLoading ? "Processing..." : "Create Account"}</Button></div>
+                  
+                  <div className="pt-2">
+                    <Button type="submit" disabled={isLoading} className={`w-full h-12 text-base font-semibold transition-transform active:scale-95 ${isProDomain ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                      {isLoading ? "Processing..." : "Create Account"}
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </>
